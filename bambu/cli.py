@@ -79,6 +79,28 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["bambu-studio", "orcaslicer", "orca"],
         help="Slicer CLI to run.",
     )
+
+    create = subparsers.add_parser(
+        "create-project",
+        help="Create a structured agent project workspace from a plain-English print idea.",
+    )
+    create.add_argument("intent", help="Plain-English model intent.")
+    create.add_argument("--root", type=Path, default=Path("projects"), help="Project workspace root.")
+    create.add_argument("--slug", help="Optional project slug. Defaults to a slug from the intent.")
+    create.add_argument("--lane", default="build123d", choices=["build123d", "openscad", "figurine"])
+    create.add_argument("--privacy", default="private")
+    create.add_argument("--material", default="Bambu PLA Basic")
+    create.add_argument("--plate-side", default="deferred")
+
+    result = subparsers.add_parser(
+        "record-print-result",
+        help="Record physical print feedback for a project revision.",
+    )
+    result.add_argument("project", type=Path, help="Project directory containing project.yaml.")
+    result.add_argument("--outcome", required=True, choices=["not_printed", "success", "partial_success", "failed"])
+    result.add_argument("--failure-mode", default="")
+    result.add_argument("--notes", default="")
+    result.add_argument("--next-revision", default="")
     return parser
 
 
@@ -97,6 +119,10 @@ def main(argv: list[str] | None = None) -> int:
         return _slice_plan(args.model, args.output, args.slicer)
     if args.command == "prototype-world-cup":
         return _prototype_world_cup(args.output_dir, args.slicer)
+    if args.command == "create-project":
+        return _create_project(args)
+    if args.command == "record-print-result":
+        return _record_print_result(args)
 
     raise AssertionError(f"Unhandled command: {args.command}")
 
@@ -199,6 +225,39 @@ def _slice_plan(model: Path, output: Path, slicer: str) -> int:
     print("---------")
     for item in plan.checklist:
         print(f"- {item}")
+    return 0
+
+
+def _create_project(args: argparse.Namespace) -> int:
+    from bambu.projects import create_project
+
+    project = create_project(
+        args.intent,
+        root=args.root,
+        slug=args.slug,
+        lane=args.lane,
+        privacy=args.privacy,
+        material=args.material,
+        plate_side=args.plate_side,
+    )
+    print(f"Created project: {args.root / project['slug']}")
+    print(f"Lane: {project['lane']}")
+    print(f"Next safe action: {project['next_safe_action']}")
+    return 0
+
+
+def _record_print_result(args: argparse.Namespace) -> int:
+    from bambu.projects import record_print_result
+
+    result = record_print_result(
+        args.project,
+        outcome=args.outcome,
+        failure_mode=args.failure_mode,
+        notes=args.notes,
+        next_revision=args.next_revision,
+    )
+    print(f"Recorded print result: {result['project_slug']} {result['revision']} {result['outcome']}")
+    print("Next: revise source from the recorded physical feedback before exporting again.")
     return 0
 
 
