@@ -2,6 +2,63 @@
   "schema_version": 1,
   "project_slug": "world-cup-neighbors",
   "revision": "v001",
-  "updated_at": "2026-06-12T00:00:00+00:00",
-  "artifacts": []
+  "updated_at": "2026-06-12T15:03:17+00:00",
+  "artifacts": [
+    {
+      "path": "outputs/world-cup-neighbors-a1m-project.3mf",
+      "kind": "project_3mf",
+      "sha256": "5e14f1c451baee07acb5346a5a6849ba367d13a822cec362f87fbcc5ff971c00",
+      "bytes": 705121,
+      "generated": true
+    },
+    {
+      "path": "outputs/world-cup-neighbors-fixed.gcode.3mf",
+      "kind": "sliced_gcode_3mf",
+      "sha256": "bc991b55cde2178d811e389aa6f88c5b1b4dccd792f47405a75d74702de3ad10",
+      "bytes": 2423405,
+      "generated": true
+    },
+    {
+      "path": "outputs/world-cup-neighbors-preview.png",
+      "kind": "preview_png",
+      "sha256": "09a2202f3b76e205b6f325a07d7655ff616fea32ba2fba2b4b2bc6cb793780cd",
+      "bytes": 104348,
+      "generated": true
+    },
+    {
+      "path": "outputs/world-cup-neighbors.bambu.gcode.3mf",
+      "kind": "sliced_gcode_3mf",
+      "sha256": "fa9b6d1525611d2c30a9935a2fc241b635ccb98aa6429a7c6c84bbbbd5ed219d",
+      "bytes": 1909161,
+      "generated": true
+    },
+    {
+      "path": "outputs/world-cup-neighbors.gcode.3mf",
+      "kind": "sliced_gcode_3mf",
+      "sha256": "bc991b55cde2178d811e389aa6f88c5b1b4dccd792f47405a75d74702de3ad10",
+      "bytes": 2423405,
+      "generated": true
+    },
+    {
+      "path": "outputs/world-cup-neighbors.orca.gcode.3mf",
+      "kind": "sliced_gcode_3mf",
+      "sha256": "86f9f1ae351a591b1eae6095b0cadaeb0c7a78351e22d74f7b6e2fe1995e3b18",
+      "bytes": 1725935,
+      "generated": true
+    },
+    {
+      "path": "outputs/world-cup-neighbors.scad",
+      "kind": "source_snapshot",
+      "sha256": "0318aca8c7722d54c7c789afdac352ee0cc4d17fe47b227e5f5345bfdc8426eb",
+      "bytes": 8053,
+      "generated": true
+    },
+    {
+      "path": "outputs/world-cup-neighbors.stl",
+      "kind": "mesh_stl",
+      "sha256": "240bde5df8c0bd9068b61052b34106ba808f30774993db125112ebb4a6928acf",
+      "bytes": 18551990,
+      "generated": true
+    }
+  ]
 }
