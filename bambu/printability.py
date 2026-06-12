@@ -13,13 +13,14 @@ from __future__ import annotations
 
 import json
 import math
-import struct
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
 import yaml
+
+from bambu.mesh import analyze_overhangs
 
 
 FILAMENT_DIAMETER_MM = 1.75
@@ -30,104 +31,10 @@ def load_printer_context(path: Path = DEFAULT_CONTEXT) -> dict[str, Any]:
     return yaml.safe_load(Path(path).read_text())
 
 
-def analyze_stl_overhangs(
-    stl_path: Path,
-    *,
-    max_overhang_deg: float = 45.0,
-    z_floor_mm: float = 0.6,
-    patch_budget_mm2: float = 120.0,
-) -> dict[str, Any]:
-    """Cluster downward-facing area steeper than the printable overhang.
+def analyze_stl_overhangs(stl_path: Path, **kwargs: Any) -> dict[str, Any]:
+    """Connected-patch overhang analysis; see bambu.mesh.analyze_overhangs."""
 
-    What fails on FDM is a LARGE connected steep patch, not total ledge area:
-    raised lettering undersides, brow ledges, and mitten bottoms are a couple
-    of square millimetres each and print fine, while a broad under-chin span
-    droops. Flagged facets are union-found into patches via shared vertices
-    and the gate judges the largest patch. Plate-touching facets are exempt.
-    """
-
-    stl = Path(stl_path)
-    if not stl.exists():
-        return {"available": False, "reason": f"STL not found: {stl}", "ok": False}
-
-    with open(stl, "rb") as handle:
-        handle.read(80)
-        (facet_count,) = struct.unpack("<I", handle.read(4))
-        data = handle.read()
-
-    nz_limit = -math.cos(math.radians(max_overhang_deg))
-    bridge_nz = -0.985  # within ~10 deg of straight down: slicers bridge these
-    record = struct.Struct("<12fH")
-    offset = 0
-    worst_nz = 0.0
-    flagged: list[tuple[float, tuple[int, int, int], tuple[float, float, float], bool]] = []
-    vertex_ids: dict[tuple[float, ...], int] = {}
-    for _ in range(facet_count):
-        values = record.unpack_from(data, offset)
-        offset += record.size
-        ax, ay, az, bx, by, bz, cx, cy, cz = values[3:12]
-        if max(az, bz, cz) <= z_floor_mm:
-            continue
-        ux, uy, uz = bx - ax, by - ay, bz - az
-        vx, vy, vz = cx - ax, cy - ay, cz - az
-        nx, ny, nz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
-        norm = math.sqrt(nx * nx + ny * ny + nz * nz)
-        if norm <= 1e-12 or nz / norm >= nz_limit:
-            continue
-        worst_nz = min(worst_nz, nz / norm)
-        ids = tuple(
-            vertex_ids.setdefault(vertex, len(vertex_ids))
-            for vertex in ((ax, ay, az), (bx, by, bz), (cx, cy, cz))
-        )
-        centroid = ((ax + bx + cx) / 3, (ay + by + cy) / 3, (az + bz + cz) / 3)
-        flagged.append((norm / 2.0, ids, centroid, nz / norm <= bridge_nz))
-
-    # Union-find on shared vertices.
-    parent = list(range(len(vertex_ids)))
-
-    def find(i: int) -> int:
-        while parent[i] != i:
-            parent[i] = parent[parent[i]]
-            i = parent[i]
-        return i
-
-    for _, ids, _, _ in flagged:
-        a = find(ids[0])
-        for other in ids[1:]:
-            parent[find(other)] = a
-
-    patches: dict[int, dict[str, Any]] = {}
-    for area, ids, centroid, is_bridge in flagged:
-        root = find(ids[0])
-        patch = patches.setdefault(root, {"area": 0.0, "steep": 0.0, "bridge": 0.0, "centroid": centroid})
-        patch["area"] += area
-        patch["bridge" if is_bridge else "steep"] += area
-
-    # Flat-down area spanning between supports is a bridge - slicers print
-    # those with bridging moves (goal crossbar, lettering undersides). The
-    # droop risk is SLOPED steep area, so the gate judges per-patch steep area.
-    ranked = sorted(patches.values(), key=lambda p: -p["steep"])
-    largest_steep = ranked[0]["steep"] if ranked else 0.0
-    return {
-        "available": True,
-        "facets": facet_count,
-        "max_overhang_deg": max_overhang_deg,
-        "flagged_area_mm2": round(sum(p["area"] for p in ranked), 1),
-        "bridge_area_mm2": round(sum(p["bridge"] for p in ranked), 1),
-        "patch_count": len(ranked),
-        "largest_steep_patch_mm2": round(largest_steep, 1),
-        "patch_budget_mm2": patch_budget_mm2,
-        "worst_normal_z": round(worst_nz, 3),
-        "top_patches": [
-            {
-                "steep_mm2": round(p["steep"], 1),
-                "bridge_mm2": round(p["bridge"], 1),
-                "near": [round(c, 1) for c in p["centroid"]],
-            }
-            for p in ranked[:6]
-        ],
-        "ok": largest_steep <= patch_budget_mm2,
-    }
+    return analyze_overhangs(stl_path, **kwargs)
 
 
 def qc_sliced_3mf(path: Path, *, context: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -216,7 +123,11 @@ def qc_sliced_3mf(path: Path, *, context: dict[str, Any] | None = None) -> dict[
     return report
 
 
-def qc_report_lines(stl_report: dict[str, Any], slice_report: dict[str, Any]) -> list[str]:
+def qc_report_lines(
+    stl_report: dict[str, Any],
+    slice_report: dict[str, Any],
+    island_report: dict[str, Any] | None = None,
+) -> list[str]:
     lines = ["Printability QC", "---------------"]
     if stl_report.get("available"):
         lines.append(
@@ -233,6 +144,20 @@ def qc_report_lines(stl_report: dict[str, Any], slice_report: dict[str, Any]) ->
             lines.append(
                 f"  steep {patch['steep_mm2']} mm2 / bridge {patch['bridge_mm2']} mm2 near {patch['near']}"
             )
+    if island_report and island_report.get("available"):
+        lines.append(
+            "floating islands: %d blocking, %d total (support scan %.1f mm radius, %.1f mm band) -> %s"
+            % (
+                island_report["blocking_count"],
+                island_report["island_count"],
+                island_report["support_radius_mm"],
+                island_report["support_band_mm"],
+                "ok" if island_report["ok"] else "MID-AIR START",
+            )
+        )
+        for island in island_report.get("islands", [])[:6]:
+            marker = "BLOCKING" if island["blocking"] else "tolerated nub"
+            lines.append(f"  island seed at {island['seed']} ({marker})")
     else:
         lines.append(f"overhang analysis unavailable: {stl_report.get('reason')}")
     lines.append("")

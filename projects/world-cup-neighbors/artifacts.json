@@ -2,7 +2,7 @@
   "schema_version": 1,
   "project_slug": "world-cup-neighbors",
   "revision": "v002",
-  "updated_at": "2026-06-12T22:29:35+00:00",
+  "updated_at": "2026-06-12T22:56:41+00:00",
   "artifacts": [
     {
       "path": "outputs/world-cup-neighbors-v4.gcode.3mf",
@@ -14,7 +14,7 @@
     {
       "path": "outputs/world-cup-neighbors-v4.step",
       "kind": "cad_step",
-      "sha256": "83ed34f389ed29a0c8209220615e57bae2b213229403cc3525ec5282d73e98c2",
+      "sha256": "234cc7b410de281c5a978be1109df790641321ca2ce6cf24d4a103de8c8697d8",
       "bytes": 7840070,
       "generated": true
     },

@@ -118,6 +118,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export.add_argument("project", type=Path, help="Project directory containing project.yaml.")
     export.add_argument("--output-dir", type=Path, default=Path("outputs"))
+    export.add_argument("--source-file", type=Path, default=None, help="Alternate build123d source file.")
+    export.add_argument("--output-slug", default=None, help="Alternate output artifact name.")
 
     design_check = subparsers.add_parser(
         "design-check",
@@ -136,6 +138,19 @@ def build_parser() -> argparse.ArgumentParser:
     qc.add_argument("--context", type=Path, default=Path("profiles/bambu-a1-mini/context.yaml"))
     qc.add_argument("--overhang-budget-mm2", type=float, default=150.0)
     qc.add_argument("--json", type=Path, default=None, help="Optional path to write report JSON.")
+
+    release = subparsers.add_parser(
+        "release-check",
+        help="Run every release gate in one pass: design-check, export, FreeCAD, mesh, overhangs, islands, renders.",
+    )
+    release.add_argument("project", type=Path, help="Project directory containing project.yaml.")
+    release.add_argument("--revision", default=None, help="Design revision to gate under designs/<revision>.")
+    release.add_argument("--source-file", type=Path, default=None, help="Alternate build123d source file.")
+    release.add_argument("--output-slug", default=None, help="Alternate output artifact name.")
+    release.add_argument("--views", type=Path, default=None, help="YAML file with Blender review views.")
+    release.add_argument("--no-render", action="store_true", help="Skip Blender preview rendering.")
+    release.add_argument("--outputs-root", type=Path, default=Path("outputs"))
+    release.add_argument("--json", type=Path, default=None, help="Optional path to write report JSON.")
     return parser
 
 
@@ -166,6 +181,8 @@ def main(argv: list[str] | None = None) -> int:
         return _design_check(args)
     if args.command == "qc":
         return _qc(args)
+    if args.command == "release-check":
+        return _release_check(args)
 
     raise AssertionError(f"Unhandled command: {args.command}")
 
@@ -312,7 +329,12 @@ def _sync_artifacts(args: argparse.Namespace) -> int:
 
 
 def _export_build123d(args: argparse.Namespace) -> int:
-    result = export_build123d_project(args.project, output_dir=args.output_dir)
+    result = export_build123d_project(
+        args.project,
+        output_dir=args.output_dir,
+        source_file=args.source_file,
+        output_slug=args.output_slug,
+    )
     print("build123d export")
     print("---------------")
     print(f"STEP: {result['step']}")
@@ -407,6 +429,7 @@ if __name__ == "__main__":
 
 
 def _qc(args: argparse.Namespace) -> int:
+    from bambu.mesh import analyze_islands
     from bambu.printability import analyze_stl_overhangs, load_printer_context, qc_report_lines, qc_sliced_3mf
 
     context = load_printer_context(args.context)
@@ -415,13 +438,111 @@ def _qc(args: argparse.Namespace) -> int:
         if args.stl
         else {"available": False, "reason": "no --stl provided", "ok": True}
     )
+    island_report = analyze_islands(args.stl) if args.stl else {"available": False, "ok": True}
     slice_report = qc_sliced_3mf(args.sliced, context=context)
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(json.dumps({"stl": stl_report, "sliced": slice_report}, indent=2) + "\n")
-    for line in qc_report_lines(stl_report, slice_report):
+        args.json.write_text(
+            json.dumps({"stl": stl_report, "islands": island_report, "sliced": slice_report}, indent=2) + "\n"
+        )
+    for line in qc_report_lines(stl_report, slice_report, island_report):
         print(line)
-    ok = slice_report.get("ok") and stl_report.get("ok", True)
+    ok = slice_report.get("ok") and stl_report.get("ok", True) and island_report.get("ok", True)
     print()
     print(f"QC: {'pass' if ok else 'FAIL'} (printing remains a manual decision)")
     return 0 if ok else 1
+
+
+def _release_check(args: argparse.Namespace) -> int:
+    """Every release gate in one pass with a unified verdict."""
+
+    import yaml
+
+    from bambu.review3d import review_project_3d
+
+    gates: list[tuple[str, bool, str]] = []
+
+    if args.revision:
+        spec = load_design_spec(args.project, revision=args.revision)
+        design_report = validate_design_spec(spec)
+        gates.append(("design-check", design_report["ok"], "; ".join(design_report["errors"]) or "specs valid"))
+    else:
+        design_report = None
+
+    views = None
+    if args.views:
+        views = yaml.safe_load(args.views.read_text())["views"]
+    review = review_project_3d(
+        args.project,
+        outputs_root=args.outputs_root,
+        render=not args.no_render,
+        source_file=args.source_file,
+        output_slug=args.output_slug,
+        views=views,
+    )
+    freecad = review.get("freecad", {})
+    mesh = review.get("mesh", {})
+    overhangs = review.get("overhangs", {})
+    islands = review.get("islands", {})
+    blender = review.get("blender", {})
+
+    gates.append(("fits A1 mini", bool(review.get("fits_a1_mini")), str(review.get("bounding_box_mm"))))
+    gates.append(
+        (
+            "FreeCAD geometry",
+            freecad.get("available", False) and not freecad.get("warnings"),
+            "valid=%s closed=%s solids=%s blocking=%s"
+            % (
+                freecad.get("is_valid"),
+                freecad.get("is_closed"),
+                freecad.get("counts", {}).get("solids"),
+                freecad.get("geometry_error_classes", {}).get("blocking") or "none",
+            ),
+        )
+    )
+    gates.append(
+        (
+            "mesh watertight",
+            bool(mesh.get("watertight_manifold")),
+            "open=%s non-manifold=%s" % (mesh.get("open_edges"), mesh.get("non_manifold_edges")),
+        )
+    )
+    gates.append(
+        (
+            "overhang patches",
+            bool(overhangs.get("ok")),
+            "largest steep %s mm2 (budget %s)"
+            % (overhangs.get("largest_steep_patch_mm2"), overhangs.get("patch_budget_mm2")),
+        )
+    )
+    gates.append(
+        (
+            "floating islands",
+            bool(islands.get("ok")),
+            "%s blocking of %s seeds" % (islands.get("blocking_count"), islands.get("island_count")),
+        )
+    )
+    if not args.no_render:
+        gates.append(("review renders", bool(blender.get("paths")), f"{len(blender.get('paths', []))} views"))
+
+    if args.json:
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps({"design": design_report, "review": review}, indent=2) + "\n")
+
+    print("Release check")
+    print("=============")
+    print(f"project: {args.project}")
+    if args.revision:
+        print(f"revision: {args.revision}")
+    print(f"STEP: {review.get('step')}")
+    print(f"STL: {review.get('stl')}")
+    print()
+    all_ok = True
+    for name, ok, detail in gates:
+        all_ok = all_ok and ok
+        print(f"- {name}: {'pass' if ok else 'FAIL'} ({detail})")
+    print()
+    print(f"release check: {'PASS' if all_ok else 'FAIL'}")
+    print("Next: slice, then `bambu qc <sliced.gcode.3mf> --stl <model.stl>`, then `bambu handoff`.")
+    print(review.get("manual_boundary", ""))
+    return 0 if all_ok else 1

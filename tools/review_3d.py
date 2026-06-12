@@ -43,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
         report.get("fits_a1_mini"),
         not report.get("freecad", {}).get("warnings"),
         report.get("mesh", {}).get("watertight_manifold"),
+        report.get("overhangs", {}).get("ok", True),
+        report.get("islands", {}).get("ok", True),
     )
     return 0 if all(gates) else 1
 
@@ -84,6 +86,31 @@ def print_summary(report: dict) -> None:
         print(f"non-manifold edges: {mesh.get('non_manifold_edges')}")
         print(f"degenerate facets: {mesh.get('degenerate_facets')} (tolerated; slicers discard zero-area triangles)")
         print(f"watertight manifold: {'yes' if mesh.get('watertight_manifold') else 'no'}")
+    overhangs = report.get("overhangs", {})
+    islands = report.get("islands", {})
+    if overhangs.get("available"):
+        print()
+        print("Print-path gates")
+        print("----------------")
+        print(
+            "overhangs: largest steep patch %s mm2 (budget %s) -> %s"
+            % (
+                overhangs.get("largest_steep_patch_mm2"),
+                overhangs.get("patch_budget_mm2"),
+                "ok" if overhangs.get("ok") else "OVER BUDGET",
+            )
+        )
+        print(
+            "islands: %s blocking of %s seeds -> %s"
+            % (
+                islands.get("blocking_count"),
+                islands.get("island_count"),
+                "ok" if islands.get("ok") else "MID-AIR START",
+            )
+        )
+        for island in islands.get("islands", [])[:5]:
+            marker = "BLOCKING" if island.get("blocking") else "tolerated nub"
+            print(f"  seed {island.get('seed')} ({marker})")
     blender = report.get("blender", {})
     print()
     print("Blender previews")

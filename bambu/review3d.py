@@ -11,6 +11,7 @@ import subprocess
 from typing import Any
 
 from bambu.cad import export_build123d_project
+from bambu.mesh import analyze_islands, analyze_overhangs, inspect_mesh
 from bambu.projects import sync_project_artifacts
 
 
@@ -107,51 +108,9 @@ def parse_freecad_json(output: str) -> dict[str, Any]:
 
 
 def inspect_stl_mesh(stl_path: Path) -> dict[str, Any]:
-    """Watertight/manifold check on a binary STL: the authoritative print-path gate.
+    """Watertight/manifold mesh gate; see bambu.mesh.inspect_mesh."""
 
-    Every edge of every non-degenerate facet must be shared by exactly two
-    facets. Zero-area facets are counted but tolerated; slicers discard them.
-    """
-
-    import struct
-    from collections import defaultdict
-
-    if not Path(stl_path).exists():
-        return {"available": False, "reason": f"STL not found: {stl_path}", "watertight_manifold": False}
-
-    with open(stl_path, "rb") as handle:
-        handle.read(80)
-        (facet_count,) = struct.unpack("<I", handle.read(4))
-        data = handle.read()
-
-    record = struct.Struct("<12fH")
-    vertex_ids: dict[tuple[float, ...], int] = {}
-    edges: dict[tuple[int, int], int] = defaultdict(int)
-    degenerate = 0
-    offset = 0
-    for _ in range(facet_count):
-        values = record.unpack_from(data, offset)
-        offset += record.size
-        ids = []
-        for start in (3, 6, 9):
-            vertex = values[start : start + 3]
-            ids.append(vertex_ids.setdefault(vertex, len(vertex_ids)))
-        if len(set(ids)) < 3:
-            degenerate += 1
-            continue
-        for u, v in ((ids[0], ids[1]), (ids[1], ids[2]), (ids[2], ids[0])):
-            edges[(min(u, v), max(u, v))] += 1
-
-    open_edges = sum(1 for count in edges.values() if count == 1)
-    non_manifold = sum(1 for count in edges.values() if count > 2)
-    return {
-        "facets": facet_count,
-        "vertices": len(vertex_ids),
-        "degenerate_facets": degenerate,
-        "open_edges": open_edges,
-        "non_manifold_edges": non_manifold,
-        "watertight_manifold": open_edges == 0 and non_manifold == 0,
-    }
+    return inspect_mesh(stl_path)
 
 
 def detect_blender() -> str | None:
@@ -268,7 +227,9 @@ def review_project_3d(
     stl = Path(export["stl"])
     review_dir = outputs_root / "review" / export["project_slug"]
     freecad_report = inspect_step_with_freecad(step, review_dir / "freecad_review.json")
-    mesh_report = inspect_stl_mesh(stl)
+    mesh_report = inspect_mesh(stl)
+    overhang_report = analyze_overhangs(stl)
+    island_report = analyze_islands(stl)
     blender_report = (
         render_blender_previews(stl, review_dir, views=views) if render else {"available": False, "paths": []}
     )
@@ -280,6 +241,8 @@ def review_project_3d(
         "fits_a1_mini": export["fits_a1_mini"],
         "freecad": freecad_report,
         "mesh": mesh_report,
+        "overhangs": overhang_report,
+        "islands": island_report,
         "blender": blender_report,
         "artifact_count": len(artifacts.get("artifacts", [])),
         "printer_contact": False,
