@@ -12,6 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "Mike Edwards" }]
 dependencies = [
   "mcp>=1.12.4",
+  "pyyaml>=6.0.3",
 ]
 keywords = ["3d-printing", "bambu", "openscad", "cad", "agents"]
 classifiers = [
@@ -27,6 +28,11 @@ classifiers = [
 [project.scripts]
 bambu = "bambu.cli:main"
 bambu-mcp = "bambu.mcp_server:main"
+
+[project.optional-dependencies]
+cad = [
+    "build123d>=0.10.0 ; python_full_version < '3.13'",
+]
 
 [tool.setuptools]
 packages = ["bambu"]

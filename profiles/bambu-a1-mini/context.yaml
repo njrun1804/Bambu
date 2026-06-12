@@ -1,0 +1,20 @@
+printer:
+  model: Bambu Lab A1 mini
+  build_volume_mm:
+    - 180
+    - 180
+    - 180
+  nozzle_mm: 0.4
+  max_hotend_c: 300
+  printer_contact_policy: manual_only
+materials:
+  - name: Bambu PLA Basic
+    lane_default: easy
+    requires_dryness_tracking: false
+  - name: Bambu PETG HF
+    lane_default: functional
+    requires_dryness_tracking: true
+    drying_note: Dry before use and keep moisture-free during longer prints.
+plate:
+  name: Bambu Dual-Texture PEI Plate
+  side_required: explicit
