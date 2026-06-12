@@ -1,0 +1,56 @@
+schema_version: 1
+cad_backend: build123d
+source_layout:
+  generated_or_authored_source_dir: source/v3
+  component_library: source/v3/components.py
+  assembly_entrypoint: source/v3/model.py
+  generated_outputs_prefix: outputs/world-cup-neighbors-v3
+review_tools:
+  agent:
+    - FreeCAD
+    - Blender
+  manual:
+    - Bambu Studio
+components:
+  base:
+    type: rounded_rectangle
+    source_spec: print_constraints.target_model.base_size_mm
+    includes:
+      - raised DAN label
+      - raised CARRIE label
+      - Brazil watch party cue
+  goal:
+    type: structural_backdrop
+    constraints:
+      post_min_mm: 4.0
+      net_opening_min_mm: 2.0
+      net_style: chunky bars, not mesh strings
+  soccer_ball:
+    type: fused_low_relief_ball
+    placement: front_left_or_center_base
+    panel_strategy: raised paint guides
+  figures:
+    type: toy_caricature_pair
+    source_spec: people.people
+    head_system:
+      form: rounded stacked solids
+      face: raised and engraved broad relief landmarks
+      glasses: fused raised ridge
+    body_system:
+      form: soccer fan jersey silhouettes
+      paint_guides: jersey panel, numbers, heart, sleeve bands
+generation_sequence:
+  - load designs/v3/*.yaml
+  - validate design-check gates
+  - generate build123d components from designs/v3/*.yaml
+  - export STEP and STL
+  - run FreeCAD geometry review
+  - render Blender front, three-quarter, rear, and face close-up previews
+  - write review JSON and markdown summary
+  - open Bambu Studio only for manual slicer review after human approval
+next_agent_actions:
+  - generate build123d components from designs/v3/*.yaml
+  - export world-cup-neighbors-v3 STEP/STL
+  - run FreeCAD geometry review before slicer work
+  - render visual review sheet before asking to print
+  - keep printer contact disabled until human confirms slicer review and presence

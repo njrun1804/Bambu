@@ -13,7 +13,11 @@ class WorldCupV2Tests(unittest.TestCase):
         self.assertEqual(project["current_revision"], "v002")
         self.assertIn("source/model.py", project["source_files"])
         self.assertIn("outputs/world-cup-neighbors.scad", project["source_files"])
-        self.assertEqual(project["next_safe_action"], "export build123d v2 and review geometry")
+        self.assertEqual(
+            project["next_safe_action"],
+            "run bambu design-check projects/world-cup-neighbors --revision v3 before generating v3 CAD",
+        )
+        self.assertEqual(project["design_revisions"]["v3"]["source_of_truth"], "designs/v3/*.yaml")
 
     def test_v2_learning_docs_exist_and_capture_print_lessons(self):
         source_readme = Path("projects/world-cup-neighbors/source/README.md").read_text()

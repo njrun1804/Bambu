@@ -1,0 +1,27 @@
+schema_version: 1
+required_views:
+  - front
+  - three_quarter
+  - rear
+  - face_closeup
+  - top_plate_fit
+human_review_questions:
+  - Do Dan and Carrie read as people within two seconds?
+  - Can Dan and Carrie be distinguished without reading the labels?
+  - Does the Brazil watch-party soccer theme read in single green PLA?
+  - Are face cues stronger than the v2 block-head design?
+  - Does any visible feature look too thin or unsupported for a 0.4 mm nozzle?
+agent_visual_checks:
+  compare_against:
+    - references/ai-concepts/c78ef332-7597-4921-b64a-54a9be9cce80.png
+    - projects/world-cup-neighbors/reviews/006-freecad-review-workflow.md
+  required_render_outputs:
+    - outputs/review/world-cup-neighbors-v3/front.png
+    - outputs/review/world-cup-neighbors-v3/three-quarter.png
+    - outputs/review/world-cup-neighbors-v3/rear.png
+    - outputs/review/world-cup-neighbors-v3/face-closeup.png
+acceptance_thresholds:
+  people_readability: must_pass_human_review
+  theme_readability: must_pass_human_review
+  single_color_legibility: must_pass_human_review
+  geometry_warning_budget: zero_for_release_candidate

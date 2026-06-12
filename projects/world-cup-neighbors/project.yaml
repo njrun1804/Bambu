@@ -5,7 +5,12 @@ privacy: public_safe
 lane: build123d
 status: design
 current_revision: v002
-next_safe_action: export build123d v2 and review geometry
+next_safe_action: run bambu design-check projects/world-cup-neighbors --revision v3 before generating v3 CAD
+design_revisions:
+  v3:
+    status: spec_ready
+    source_of_truth: designs/v3/*.yaml
+    next_agent_action: generate build123d components from structured specs
 printer:
   model: Bambu Lab A1 mini
   build_volume_mm:
@@ -36,3 +41,9 @@ manual_gates:
 source_files:
 - source/model.py
 - outputs/world-cup-neighbors.scad
+design_files:
+- designs/v3/design.yaml
+- designs/v3/people.yaml
+- designs/v3/print_constraints.yaml
+- designs/v3/visual_acceptance.yaml
+- designs/v3/build_plan.yaml

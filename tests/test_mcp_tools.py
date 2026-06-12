@@ -148,6 +148,16 @@ class McpToolTests(unittest.TestCase):
         self.assertEqual(result["step"], "outputs/model.step")
         export.assert_called_once()
 
+    def test_mcp_design_check_exposes_agentic_v3_gate(self):
+        from bambu.mcp_server import bambu_design_check
+
+        result = bambu_design_check("projects/world-cup-neighbors", revision="v3")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["printer"]["model"], "Bambu Lab A1 mini")
+        self.assertFalse(result["printer_contact_allowed"])
+        self.assertIn("generate build123d components from designs/v3/*.yaml", result["next_agent_actions"])
+
 
 if __name__ == "__main__":
     unittest.main()

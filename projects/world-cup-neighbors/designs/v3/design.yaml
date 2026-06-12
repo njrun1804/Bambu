@@ -1,0 +1,32 @@
+schema_version: 1
+design_id: world-cup-neighbors-v3
+revision: v3
+agentic_pipeline:
+  source_of_truth: structured_specs
+  primary_operator: codex_or_claude_agent
+  human_role: approve_direction_and_physical_print
+  cad_source_is_compiled_from_specs: true
+intent:
+  gift_context: Brazil watch-party figurines for Dan and Carrie.
+  emotional_target: cute, recognizable, playful, and print-safe.
+  design_direction: Option C soccer-fan bodies with Option A rounded readable heads.
+  likeness_strategy: recognizable caricature cues, not photorealistic portrait sculpture.
+  first_pass_goal: single-color green PLA model that still reads without paint.
+reference_inputs:
+  concept_sheet:
+    path: references/ai-concepts/c78ef332-7597-4921-b64a-54a9be9cce80.png
+    role: target visual direction and print-safety annotations
+  photos_manifest:
+    path: references/manifest.yaml
+    role: private source context; do not commit private photos
+must_preserve:
+  - Dan and Carrie name labels
+  - Brazil watch-party cue
+  - soccer goal backdrop
+  - soccer ball fused to base
+  - A1 mini fit
+must_change_from_v2:
+  - replace blocky heads with rounded toy caricature head system
+  - make faces readable from front and three-quarter preview
+  - make Dan and Carrie distinguishable by silhouette and clothing cues
+  - reduce decorative solid intersections before FreeCAD review

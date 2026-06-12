@@ -1,0 +1,57 @@
+schema_version: 1
+people:
+  - id: dan
+    name: Dan
+    role: left_figurine
+    target_height_mm: 58
+    silhouette:
+      relative_height: taller
+      torso: slim_rectangular_jersey
+      pose: one_arm_raised_or_fan_gesture
+    likeness_cues:
+      - square raised glasses ridge
+      - swept solid hair cap
+      - taller stance
+      - jersey number 10
+    print_safe_face:
+      glasses: fused_raised_ridge
+      brows: raised_broad_bars
+      nose: raised_vertical_ridge
+      smile: engraved_broad_line
+      cheeks: raised_small_mass
+    clothing:
+      jersey_panel: raised_paint_guide
+      number: "10"
+      accent_strategy: paint_after_single_green_print
+  - id: carrie
+    name: Carrie
+    role: right_figurine
+    target_height_mm: 52
+    silhouette:
+      relative_height: shorter
+      torso: rounder_jersey_shape
+      pose: fan_gesture_or_holding_fused_prop
+    likeness_cues:
+      - rounded raised glasses ridge
+      - side-part solid hair mass
+      - rounder silhouette
+      - heart or jersey panel
+    print_safe_face:
+      glasses: fused_raised_ridge
+      brows: raised_broad_bars
+      nose: raised_vertical_ridge
+      smile: engraved_broad_line
+      cheeks: raised_small_mass
+    clothing:
+      jersey_panel: raised_paint_guide
+      chest_mark: heart
+      accent_strategy: paint_after_single_green_print
+shared_rules:
+  face_style: rounded toy caricature heads with low-relief landmarks
+  no_photorealism: true
+  minimum_face_feature_width_mm: 1.2
+  forbid:
+    - separate eyeglass frames
+    - thin fingers
+    - hair strands
+    - loose hand props

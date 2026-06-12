@@ -1,0 +1,29 @@
+schema_version: 1
+privacy_policy:
+  private_people_photos: keep_out_of_git
+  public_safe_derivatives: allowed_when_they_do_not_include_private_faces
+  generated_concept_sheets: allowed_if_user_approves
+references:
+  - id: source_people_photos
+    kind: private_photos
+    storage: projects/world-cup-neighbors/photos/
+    git_policy: ignored
+    role: likeness cues for Dan and Carrie
+  - id: v001_print_photos
+    kind: private_or_local_photos
+    storage: projects/world-cup-neighbors/photos/v001-post-print/
+    git_policy: ignored
+    role: physical print feedback and support cleanup evidence
+  - id: v3_concept_sheet
+    kind: ai_concept_sheet
+    suggested_path: references/ai-concepts/c78ef332-7597-4921-b64a-54a9be9cce80.png
+    git_policy: optional_public_safe
+    role: Option C/A hybrid target for v3 CAD generation
+agent_usage:
+  first_read:
+    - projects/world-cup-neighbors/designs/v3/design.yaml
+    - projects/world-cup-neighbors/designs/v3/people.yaml
+    - projects/world-cup-neighbors/designs/v3/print_constraints.yaml
+    - projects/world-cup-neighbors/designs/v3/visual_acceptance.yaml
+    - projects/world-cup-neighbors/designs/v3/build_plan.yaml
+  never_require_human_to_manually_summarize_references: true

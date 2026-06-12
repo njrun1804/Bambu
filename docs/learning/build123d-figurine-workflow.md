@@ -40,22 +40,34 @@ Do not use `@dataclass` in project-local model files until `bambu.cad` changes i
 
 ## Safe Agent Workflow
 
-1. Read `project.yaml`, `source/README.md`, and the latest review notes.
-2. Edit tracked source under `projects/<slug>/source/`.
-3. Run the model contract tests.
-4. Export with:
+1. Read `project.yaml`, the active `designs/<revision>/*.yaml` specs, `source/README.md`, and the latest review notes.
+2. Run the design gate before CAD work:
+
+   ```bash
+   uv run bambu design-check projects/<slug> --revision <revision>
+   ```
+
+3. Edit or generate tracked source under `projects/<slug>/source/` only after the structured design gate passes.
+4. Run the model contract tests.
+5. Export with:
 
    ```bash
    uv run bambu export-build123d projects/<slug> --output-dir outputs
    ```
 
-5. Sync generated artifact hashes:
+6. Sync generated artifact hashes:
 
    ```bash
    uv run bambu sync-artifacts projects/<slug> --outputs-root outputs
    ```
 
-6. Open the generated STL or 3MF in Bambu Studio and inspect supports, scale, filament, plate side, and first layer before any print.
+7. Run FreeCAD/Blender review:
+
+   ```bash
+   uv run python tools/review_3d.py projects/<slug>
+   ```
+
+8. Open the generated STL or 3MF in Bambu Studio and inspect supports, scale, filament, plate side, and first layer before any print.
 
 Generated STL, STEP, 3MF, G-code, preview images, printer credentials, and private photos stay out of git.
 
@@ -82,3 +94,15 @@ Practical harness notes:
 - keep FreeCAD inspection separate from GUI viewing.
 
 Interpretation matters: FreeCAD may report a STEP as valid and closed while `shape.check(True)` still reports OpenCASCADE self-intersection warnings. That is useful design feedback, not a reason to hide the report. Preserve the JSON and treat geometry-check warnings as cleanup input before printing.
+
+## V3 Spec-First Pipeline Lessons
+
+The model file should not be the only place where design intent lives. For agentic 3D design, start with structured specs that an agent can validate and compile:
+
+- `design.yaml`: intent, emotional target, design direction, reference inputs, and what must change from prior revisions;
+- `people.yaml`: person-specific likeness cues, silhouette cues, and print-safe face strategy;
+- `print_constraints.yaml`: Bambu Lab A1 mini limits, nozzle assumptions, material, feature minimums, and forbidden fragile geometry;
+- `visual_acceptance.yaml`: required renders and the human questions that decide whether the model reads correctly;
+- `build_plan.yaml`: component mapping, review tools, generation sequence, and next agent actions.
+
+For the World Cup neighbors v3 direction, the CAD target is not "edit v2 heads." It is "compile an Option C/A hybrid design sheet into build123d components, then prove the result through design-check, FreeCAD geometry review, Blender visual review, slicer review, and physical print telemetry."

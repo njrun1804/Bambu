@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import shlex
 import sys
 
+from bambu.design_pipeline import load_design_spec, validate_design_spec
 from bambu.figurine import Figurine, Scene, generate_scad
 from bambu.handoff import inspect_print_handoff
 from bambu.preflight import detect_tools, next_steps
@@ -116,6 +118,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export.add_argument("project", type=Path, help="Project directory containing project.yaml.")
     export.add_argument("--output-dir", type=Path, default=Path("outputs"))
+
+    design_check = subparsers.add_parser(
+        "design-check",
+        help="Validate structured agentic design specs before CAD generation.",
+    )
+    design_check.add_argument("project", type=Path, help="Project directory containing project.yaml.")
+    design_check.add_argument("--revision", default="v3", help="Design revision under designs/<revision>.")
+    design_check.add_argument("--json", type=Path, default=None, help="Optional path to write report JSON.")
     return parser
 
 
@@ -142,6 +152,8 @@ def main(argv: list[str] | None = None) -> int:
         return _sync_artifacts(args)
     if args.command == "export-build123d":
         return _export_build123d(args)
+    if args.command == "design-check":
+        return _design_check(args)
 
     raise AssertionError(f"Unhandled command: {args.command}")
 
@@ -297,6 +309,45 @@ def _export_build123d(args: argparse.Namespace) -> int:
     print(f"fits A1 mini: {'yes' if result['fits_a1_mini'] else 'no'}")
     print("Manual boundary: review exported geometry before slicing or printing.")
     return 0
+
+
+def _design_check(args: argparse.Namespace) -> int:
+    spec = load_design_spec(args.project, revision=args.revision)
+    report = validate_design_spec(spec)
+    if args.json:
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(report, indent=2) + "\n")
+
+    print("Agentic design check")
+    print("--------------------")
+    print(f"project: {args.project}")
+    print(f"revision: {report['revision']}")
+    print(f"status: {'pass' if report['ok'] else 'fail'}")
+    print(f"printer: {report['printer']['model']}")
+    print(f"printer contact allowed: {'yes' if report['printer_contact_allowed'] else 'no'}")
+    print()
+    print("Gates")
+    print("-----")
+    for name, passed in report["gates"].items():
+        print(f"- {name}: {'pass' if passed else 'fail'}")
+    if report["errors"]:
+        print()
+        print("Errors")
+        print("------")
+        for error in report["errors"]:
+            print(f"- {error}")
+    if report["warnings"]:
+        print()
+        print("Warnings")
+        print("--------")
+        for warning in report["warnings"]:
+            print(f"- {warning}")
+    print()
+    print("Next agent actions")
+    print("------------------")
+    for action in report["next_agent_actions"]:
+        print(f"- {action}")
+    return 0 if report["ok"] else 1
 
 
 def export_build123d_project(*args, **kwargs):

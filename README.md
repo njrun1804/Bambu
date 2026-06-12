@@ -13,6 +13,7 @@ Bambu is a public-ready workbench for describing what you want in plain English,
 - Builds dry-run slicer commands for Bambu Studio or OrcaSlicer.
 - Builds the current safe prototype through SCAD, STL, and sliced 3MF without printer contact.
 - Reviews build123d STEP/STL outputs through headless FreeCAD and Blender previews without printer contact.
+- Validates agent-readable design specs before CAD generation, so v3 work starts from YAML constraints instead of hand-tweaking model code.
 - Checks the generated `.gcode.3mf` for A1 mini handoff metadata and prints the exact Bambu Studio open command.
 - Keeps private photos, printer credentials, and generated meshes out of git.
 - Refuses to pretend the printer is safe to automate blindly: v1 stops at reviewable files and command plans.
@@ -71,6 +72,14 @@ uv run python tools/review_3d.py projects/<slug>
 ```
 
 That regenerates STEP/STL, runs the STEP through FreeCAD console mode for shape validity, solids, bounding box, volume, tessellation, and OpenCASCADE geometry checks, then renders Blender preview PNGs if Blender is installed. It never contacts Bambu Studio or the printer.
+
+For agentic v3 work, the first gate is the structured design check:
+
+```bash
+uv run bambu design-check projects/<slug> --revision v3
+```
+
+That reads `designs/v3/*.yaml` and verifies the project has explicit intent, printer constraints, people/likeness cues, visual acceptance views, review tools, and next agent actions before any CAD source is generated. The design spec is the source of truth; build123d code is downstream.
 
 ## Python Runtime And External Tools
 
@@ -159,6 +168,24 @@ uv run python tools/review_3d.py projects/world-cup-neighbors --json outputs/rev
 ```
 
 FreeCAD can report a model as valid and closed while still finding deeper geometry-check warnings. Treat those warnings as design cleanup input before printing the next revision.
+
+## World Cup Neighbors V3 Agentic Pipeline
+
+World Cup neighbors v3 starts from structured specs:
+
+- `projects/world-cup-neighbors/designs/v3/design.yaml`
+- `projects/world-cup-neighbors/designs/v3/people.yaml`
+- `projects/world-cup-neighbors/designs/v3/print_constraints.yaml`
+- `projects/world-cup-neighbors/designs/v3/visual_acceptance.yaml`
+- `projects/world-cup-neighbors/designs/v3/build_plan.yaml`
+
+Run:
+
+```bash
+uv run bambu design-check projects/world-cup-neighbors --revision v3
+```
+
+Only after that gate passes should an agent generate `source/v3/` build123d components, export STEP/STL, run FreeCAD, render Blender review views, and ask for human approval before Bambu Studio slicing or any physical print.
 
 ## Public Repo Safety
 

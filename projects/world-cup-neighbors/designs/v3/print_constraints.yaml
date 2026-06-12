@@ -1,0 +1,40 @@
+schema_version: 1
+printer:
+  model: Bambu Lab A1 mini
+  build_volume_mm:
+    x: 180
+    y: 180
+    z: 180
+  nozzle_mm: 0.4
+  printer_contact_allowed: false
+  printer_contact_policy: manual_only_after_human_slicer_review
+  target_plate: Bambu textured PEI
+  material_first_pass: green PLA
+target_model:
+  max_size_mm:
+    x: 125
+    y: 70
+    z: 70
+  base_size_mm:
+    x: 125
+    y: 70
+    z: 5
+  print_orientation: flat_on_base
+feature_minimums:
+  raised_detail_width_mm: 1.2
+  raised_detail_height_mm: 1.0
+  engraved_line_width_mm: 1.0
+  engraved_line_depth_mm: 0.8
+  net_opening_min_mm: 2.0
+  wall_or_post_min_mm: 2.0
+support_policy:
+  avoid_supports_where_possible: true
+  max_unreviewed_overhang_degrees: 45
+  fuse_small_parts_to_body_or_base: true
+forbid:
+  - thin separate fingers
+  - loose props
+  - floating glasses frames
+  - unsupported hair strands
+  - freestanding tiny soccer ball
+  - net strings thinner than 1.2 mm

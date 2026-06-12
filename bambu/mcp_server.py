@@ -11,6 +11,7 @@ from typing import Any
 
 from bambu.cli import default_world_cup_scene
 from bambu.context import context_view, rules_view
+from bambu.design_pipeline import load_design_spec, validate_design_spec
 from bambu.figurine import generate_scad
 from bambu.handoff import inspect_print_handoff
 from bambu.preflight import detect_tools, next_steps, serialize_report
@@ -73,6 +74,12 @@ def bambu_project_view(project: str) -> dict[str, Any]:
     """Return manifest, artifact, validation, and next-action state for a project."""
 
     return project_view(Path(project))
+
+
+def bambu_design_check(project: str, revision: str = "v3") -> dict[str, Any]:
+    """Validate structured design specs before CAD generation or printer work."""
+
+    return validate_design_spec(load_design_spec(Path(project), revision=revision))
 
 
 def bambu_sync_artifacts(
@@ -234,6 +241,7 @@ def _build_mcp():
     server.tool()(bambu_rules_view)
     server.tool()(bambu_create_project)
     server.tool()(bambu_project_view)
+    server.tool()(bambu_design_check)
     server.tool()(bambu_sync_artifacts)
     server.tool()(bambu_build123d_export)
     server.tool()(bambu_record_print_result)

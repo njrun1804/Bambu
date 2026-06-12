@@ -15,6 +15,7 @@ The server exposes safe workflow tools:
 - `bambu_rules_view`: inspect backend, artifact, privacy, slicer, and print-gate rules.
 - `bambu_create_project`: create a structured `projects/<slug>/` workspace from a plain-English idea.
 - `bambu_project_view`: inspect manifest, artifacts, validation status, and next safe action for a project.
+- `bambu_design_check`: validate `designs/<revision>/*.yaml` before CAD generation.
 - `bambu_sync_artifacts`: hash and classify generated files from `outputs/` into a project artifact index.
 - `bambu_build123d_export`: export `source/model.py` build123d projects to STEP/STL with bounding-box fit metadata.
 - `bambu_record_print_result`: capture measurements, material state, failure mode, and next revision notes after a physical print.
@@ -28,7 +29,7 @@ The MCP server **does not start print jobs**. Agents must stop at source/export/
 
 Keep private reference photos, printer credentials, and local slicer profiles under `private/`. Do not commit them.
 
-General work should start from `bambu_context_view`, then `bambu_create_project` or `bambu_project_view`. Use build123d for serious/dimensional CAD, OpenSCAD for simple public/remixable models, and Bambu Studio as the primary slicer handoff. After any export, call `bambu_sync_artifacts` so generated local files become visible to agents through hashes and artifact kinds.
+General work should start from `bambu_context_view`, then `bambu_create_project` or `bambu_project_view`. For sophisticated designs, especially likeness-based or sketch/concept-sheet-driven work, agents should update `designs/<revision>/*.yaml` and call `bambu_design_check` before generating CAD. Use build123d for serious/dimensional CAD, OpenSCAD for simple public/remixable models, and Bambu Studio as the primary slicer handoff. After any export, call `bambu_sync_artifacts` so generated local files become visible to agents through hashes and artifact kinds.
 
 ## Suggested MCP Client Config
 
