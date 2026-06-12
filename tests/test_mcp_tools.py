@@ -78,6 +78,52 @@ class McpToolTests(unittest.TestCase):
         self.assertEqual(result["missing_markers"], [])
         self.assertIn("Bambu Network plug-in", " ".join(result["manual_boundary"]))
 
+    def test_mcp_context_and_rules_views_expose_substrate(self):
+        from bambu.mcp_server import bambu_context_view, bambu_rules_view
+
+        context = bambu_context_view()
+        rules = bambu_rules_view()
+
+        self.assertEqual(context["printer"]["model"], "Bambu Lab A1 mini")
+        self.assertEqual(rules["cad_backends"]["serious"], "build123d")
+        self.assertEqual(rules["printer_contact"], "manual_only")
+
+    def test_mcp_create_project_and_project_view(self):
+        from bambu.mcp_server import bambu_create_project, bambu_project_view
+
+        with tempfile.TemporaryDirectory() as tmp:
+            created = bambu_create_project(
+                "Cable clip",
+                root=tmp,
+                lane="build123d",
+                privacy="private",
+                material="Bambu PLA Basic",
+                plate_side="textured",
+            )
+            view = bambu_project_view(created["project_dir"])
+
+        self.assertEqual(created["project"]["slug"], "cable-clip")
+        self.assertEqual(view["project"]["lane"], "build123d")
+        self.assertEqual(view["validation_errors"], [])
+
+    def test_mcp_record_print_result(self):
+        from bambu.mcp_server import bambu_create_project, bambu_record_print_result
+
+        with tempfile.TemporaryDirectory() as tmp:
+            created = bambu_create_project("Cable clip", root=tmp)
+            result = bambu_record_print_result(
+                created["project_dir"],
+                outcome="partial_success",
+                failure_mode="too_tight",
+                measurements={"clip_gap_mm": {"expected": 8, "actual": 7.4}},
+                material_state={"dryness": "not_required"},
+                notes="Fits but too tight.",
+                next_revision="Increase clip gap.",
+            )
+
+        self.assertEqual(result["outcome"], "partial_success")
+        self.assertIn("clip_gap_mm", result["measurements"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,10 +10,12 @@ from pathlib import Path
 from typing import Any
 
 from bambu.cli import default_world_cup_scene
+from bambu.context import context_view, rules_view
 from bambu.figurine import generate_scad
 from bambu.handoff import inspect_print_handoff
 from bambu.preflight import detect_tools, next_steps, serialize_report
 from bambu.pipeline import build_world_cup_prototype
+from bambu.projects import create_project, project_view, record_print_result
 from bambu.slicer import SliceRequest, build_slice_plan
 
 
@@ -30,6 +32,69 @@ def bambu_doctor() -> dict[str, Any]:
             "Keep private reference photos under private/ and out of git.",
         ],
     }
+
+
+def bambu_context_view() -> dict[str, Any]:
+    """Return deterministic printer, material, plate, tool, and safety context."""
+
+    return context_view()
+
+
+def bambu_rules_view() -> dict[str, Any]:
+    """Return agent rules for CAD backends, artifacts, privacy, and print gates."""
+
+    return rules_view()
+
+
+def bambu_create_project(
+    intent: str,
+    root: str = "projects",
+    slug: str | None = None,
+    lane: str = "build123d",
+    privacy: str = "private",
+    material: str = "Bambu PLA Basic",
+    plate_side: str = "deferred",
+) -> dict[str, Any]:
+    """Create a structured project workspace from a plain-English print idea."""
+
+    project = create_project(
+        intent,
+        root=Path(root),
+        slug=slug,
+        lane=lane,
+        privacy=privacy,
+        material=material,
+        plate_side=plate_side,
+    )
+    return {"project": project, "project_dir": str(Path(root) / project["slug"])}
+
+
+def bambu_project_view(project: str) -> dict[str, Any]:
+    """Return manifest, artifact, validation, and next-action state for a project."""
+
+    return project_view(Path(project))
+
+
+def bambu_record_print_result(
+    project: str,
+    outcome: str,
+    failure_mode: str = "",
+    measurements: dict[str, Any] | None = None,
+    material_state: dict[str, Any] | None = None,
+    notes: str = "",
+    next_revision: str = "",
+) -> dict[str, Any]:
+    """Record physical print feedback for the current project revision."""
+
+    return record_print_result(
+        Path(project),
+        outcome=outcome,
+        failure_mode=failure_mode,
+        measurements=measurements,
+        material_state=material_state,
+        notes=notes,
+        next_revision=next_revision,
+    )
 
 
 def bambu_generate_world_cup_figurines(
@@ -141,6 +206,11 @@ def _build_mcp():
     server = FastMCP("bambu_mcp")
 
     server.tool()(bambu_doctor)
+    server.tool()(bambu_context_view)
+    server.tool()(bambu_rules_view)
+    server.tool()(bambu_create_project)
+    server.tool()(bambu_project_view)
+    server.tool()(bambu_record_print_result)
     server.tool()(bambu_generate_world_cup_figurines)
     server.tool()(bambu_openscad_export_plan)
     server.tool()(bambu_slice_plan)
