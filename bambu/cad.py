@@ -17,12 +17,13 @@ def export_build123d_project(
     output_dir: Path = Path("outputs"),
     source_file: Path | None = None,
     model_symbol: str = "model",
+    output_slug: str | None = None,
 ) -> dict[str, Any]:
     """Export a build123d project model to STEP and STL and record artifacts."""
 
     project_dir = Path(project_path)
     project = load_project(project_dir / "project.yaml")
-    slug = project["slug"]
+    slug = output_slug or project["slug"]
     source = source_file or project_dir / "source" / "model.py"
     model = load_build123d_model(source, model_symbol=model_symbol)
     export_step, export_stl = _build123d_exporters()
@@ -34,7 +35,11 @@ def export_build123d_project(
     export_stl(model, stl_path)
 
     bounding_box = _bounding_box_mm(model)
-    artifacts = sync_project_artifacts(project_dir, outputs_root=output_dir)
+    artifacts = (
+        {"artifacts": []}
+        if source_file is not None or output_slug is not None
+        else sync_project_artifacts(project_dir, outputs_root=output_dir)
+    )
     return {
         "project_slug": slug,
         "source": str(source),

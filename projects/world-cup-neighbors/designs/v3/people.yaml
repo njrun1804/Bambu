@@ -3,11 +3,16 @@ people:
   - id: dan
     name: Dan
     role: left_figurine
-    target_height_mm: 58
+    target_height_mm: 56
+    head:
+      width_mm: 24
+      height_mm: 23
+      height_ratio_min: 0.38
+      form: rounded_oval_with_chin_and_cheeks
     silhouette:
       relative_height: taller
-      torso: slim_rectangular_jersey
-      pose: one_arm_raised_or_fan_gesture
+      torso: rounded_slim_jersey_capsule
+      pose: one_arm_raised_or_bent_fan_gesture
     likeness_cues:
       - square raised glasses ridge
       - swept solid hair cap
@@ -22,11 +27,16 @@ people:
     clothing:
       jersey_panel: raised_paint_guide
       number: "10"
-      accent_strategy: paint_after_single_green_print
+      accent_strategy: geometry_relief_only_no_paint_required
   - id: carrie
     name: Carrie
     role: right_figurine
     target_height_mm: 52
+    head:
+      width_mm: 24
+      height_mm: 22
+      height_ratio_min: 0.40
+      form: rounder_oval_with_bob_hair_and_cheeks
     silhouette:
       relative_height: shorter
       torso: rounder_jersey_shape
@@ -45,11 +55,13 @@ people:
     clothing:
       jersey_panel: raised_paint_guide
       chest_mark: heart
-      accent_strategy: paint_after_single_green_print
+      accent_strategy: geometry_relief_only_no_paint_required
 shared_rules:
   face_style: rounded toy caricature heads with low-relief landmarks
   no_photorealism: true
   minimum_face_feature_width_mm: 1.2
+  monochrome_readability_required: true
+  face_must_read_at_thumbnail: true
   forbid:
     - separate eyeglass frames
     - thin fingers

@@ -14,11 +14,19 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Review a generated 3D project without printer contact.")
     parser.add_argument("project", type=Path, help="Project directory containing project.yaml.")
     parser.add_argument("--outputs-root", type=Path, default=Path("outputs"))
+    parser.add_argument("--source-file", type=Path, default=None, help="Optional build123d source file override.")
+    parser.add_argument("--output-slug", default=None, help="Optional output artifact slug override.")
     parser.add_argument("--no-render", action="store_true", help="Skip Blender preview rendering.")
     parser.add_argument("--json", type=Path, default=None, help="Optional report JSON path.")
     args = parser.parse_args(argv)
 
-    report = review_project_3d(args.project, outputs_root=args.outputs_root, render=not args.no_render)
+    report = review_project_3d(
+        args.project,
+        outputs_root=args.outputs_root,
+        render=not args.no_render,
+        source_file=args.source_file,
+        output_slug=args.output_slug,
+    )
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(report, indent=2) + "\n")

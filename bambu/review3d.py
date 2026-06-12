@@ -177,11 +177,18 @@ def render_blender_previews(stl: Path, output_dir: Path, *, blender: str | None 
     }
 
 
-def review_project_3d(project_path: Path | str, *, outputs_root: Path = Path("outputs"), render: bool = True) -> dict[str, Any]:
+def review_project_3d(
+    project_path: Path | str,
+    *,
+    outputs_root: Path = Path("outputs"),
+    render: bool = True,
+    source_file: Path | None = None,
+    output_slug: str | None = None,
+) -> dict[str, Any]:
     """Export, inspect, render, and summarize a project without printer contact."""
 
     project = Path(project_path)
-    export = export_build123d_project(project, output_dir=outputs_root)
+    export = export_build123d_project(project, output_dir=outputs_root, source_file=source_file, output_slug=output_slug)
     artifacts = sync_project_artifacts(project, outputs_root=outputs_root)
     step = Path(export["step"])
     stl = Path(export["stl"])

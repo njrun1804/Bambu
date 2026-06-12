@@ -1,0 +1,49 @@
+schema_version: 1
+review_id: world-cup-neighbors-v3b-render-review
+purpose: verify that the single-color green model reads before slicer work
+source_of_truth:
+  geometry: projects/world-cup-neighbors/source/v3/model.py
+  specs:
+    - projects/world-cup-neighbors/designs/v3/design.yaml
+    - projects/world-cup-neighbors/designs/v3/people.yaml
+    - projects/world-cup-neighbors/designs/v3/print_constraints.yaml
+    - projects/world-cup-neighbors/designs/v3/visual_acceptance.yaml
+material_modes:
+  primary:
+    name: monochrome_green
+    required: true
+    rule: model must read without paint or multicolor rendering
+  optional:
+    name: paint_guide_overlay
+    required: false
+    rule: colors may explain intent but cannot be required for acceptance
+required_views:
+  - front
+  - three_quarter_front
+  - three_quarter_rear
+  - top_layout
+  - dan_head_closeup
+  - carrie_head_closeup
+  - low_front_silhouette
+hard_fail_conditions:
+  - only one figure is visible
+  - figures do not read as people in monochrome
+  - Dan and Carrie are distinguishable only by labels
+  - faces disappear at thumbnail size
+  - soccer goal dominates or slices through the faces
+  - base labels are unreadable from front or three-quarter view
+  - FreeCAD reports invalid geometry for release candidate
+  - model exceeds 125 x 70 x 70 mm
+rubric:
+  people_readability:
+    pass: both figures read as friendly toy people within two seconds
+  face_readability:
+    pass: glasses, nose, cheeks, and smile are visible in single green
+  distinctness:
+    pass: Dan is taller/narrower with swept hair; Carrie is shorter/rounder with bob hair
+  theme:
+    pass: goal, ball, jersey relief, and names read without official logos
+  print_safety:
+    pass: no loose props, no thin fingers, net bars are chunky, all major parts touch base/body
+  cad_health:
+    pass: FreeCAD valid and closed with zero warnings before slicer handoff

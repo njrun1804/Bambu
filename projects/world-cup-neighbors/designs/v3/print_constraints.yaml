@@ -10,6 +10,7 @@ printer:
   printer_contact_policy: manual_only_after_human_slicer_review
   target_plate: Bambu textured PEI
   material_first_pass: green PLA
+  final_material_assumption: single-color green PLA, unpainted
 target_model:
   max_size_mm:
     x: 125
@@ -18,8 +19,18 @@ target_model:
   base_size_mm:
     x: 125
     y: 70
-    z: 5
+    z: 12
   print_orientation: flat_on_base
+scene_targets:
+  dan_height_mm: 56
+  carrie_height_mm: 52
+  head_width_mm: 24
+  goal_outer_width_mm: 106
+  goal_outer_height_mm: 44
+  goal_bar_mm: 4.5
+  net_bar_mm: 2.2
+  net_opening_target_mm: 8
+  ball_diameter_mm: 14
 feature_minimums:
   raised_detail_width_mm: 1.2
   raised_detail_height_mm: 1.0
@@ -27,6 +38,7 @@ feature_minimums:
   engraved_line_depth_mm: 0.8
   net_opening_min_mm: 2.0
   wall_or_post_min_mm: 2.0
+  readable_label_height_mm: 7.0
 support_policy:
   avoid_supports_where_possible: true
   max_unreviewed_overhang_degrees: 45

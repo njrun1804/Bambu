@@ -1,6 +1,6 @@
 schema_version: 1
 design_id: world-cup-neighbors-v3
-revision: v3
+revision: v3b
 agentic_pipeline:
   source_of_truth: structured_specs
   primary_operator: codex_or_claude_agent
@@ -9,13 +9,21 @@ agentic_pipeline:
 intent:
   gift_context: Brazil watch-party figurines for Dan and Carrie.
   emotional_target: cute, recognizable, playful, and print-safe.
-  design_direction: Option C soccer-fan bodies with Option A rounded readable heads.
+  design_direction: v3b chibi soccer-fan collectible with large readable heads and simplified goal backdrop.
   likeness_strategy: recognizable caricature cues, not photorealistic portrait sculpture.
-  first_pass_goal: single-color green PLA model that still reads without paint.
+  color_policy: monochrome_green_final
+  first_pass_goal: single-color green PLA final model; no paint required for readability.
+  colored_reference_policy: use colored concepts only to infer proportions, personality, and relief zones.
 reference_inputs:
   concept_sheet:
     path: references/ai-concepts/c78ef332-7597-4921-b64a-54a9be9cce80.png
     role: target visual direction and print-safety annotations
+  v3b_colored_visual_target:
+    path: references/ai-concepts/68869cef-6756-47e8-8d5f-e3901f822af1.png
+    role: primary visual target for proportions, personalities, and scene balance
+  v3b_green_review_target:
+    path: references/ai-concepts/6ba80d93-b4b2-49ff-a608-3da9876d2053.png
+    role: monochrome review target and build123d/FreeCAD checklist
   photos_manifest:
     path: references/manifest.yaml
     role: private source context; do not commit private photos
@@ -30,3 +38,5 @@ must_change_from_v2:
   - make faces readable from front and three-quarter preview
   - make Dan and Carrie distinguishable by silhouette and clothing cues
   - reduce decorative solid intersections before FreeCAD review
+  - make the model read in single green PLA without paint or color separation
+  - make the soccer goal a backdrop rather than the largest visual object

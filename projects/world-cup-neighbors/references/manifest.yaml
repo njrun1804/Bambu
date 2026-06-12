@@ -19,6 +19,16 @@ references:
     suggested_path: references/ai-concepts/c78ef332-7597-4921-b64a-54a9be9cce80.png
     git_policy: optional_public_safe
     role: Option C/A hybrid target for v3 CAD generation
+  - id: v3b_colored_visual_target
+    kind: ai_concept_sheet
+    suggested_path: references/ai-concepts/68869cef-6756-47e8-8d5f-e3901f822af1.png
+    git_policy: optional_public_safe
+    role: Primary v3b visual target for proportions, personalities, and scene balance; colors are not final requirements
+  - id: v3b_green_review_target
+    kind: ai_concept_sheet
+    suggested_path: references/ai-concepts/6ba80d93-b4b2-49ff-a608-3da9876d2053.png
+    git_policy: optional_public_safe
+    role: Primary v3b monochrome review target and build123d/FreeCAD checklist
 agent_usage:
   first_read:
     - projects/world-cup-neighbors/designs/v3/design.yaml

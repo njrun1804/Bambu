@@ -55,6 +55,62 @@ class CadTests(unittest.TestCase):
         self.assertLessEqual(float(box.size.Y), 75.0)
         self.assertLessEqual(float(box.size.Z), 85.0)
 
+    def test_world_cup_v3_source_compiles_from_structured_specs(self):
+        from bambu.cad import export_build123d_project, load_build123d_model
+        from importlib.util import module_from_spec, spec_from_file_location
+
+        source = Path("projects/world-cup-neighbors/source/v3/model.py")
+        model = load_build123d_model(source)
+
+        box = model.bounding_box()
+        self.assertLessEqual(float(box.size.X), 125.1)
+        self.assertLessEqual(float(box.size.Y), 70.1)
+        self.assertLessEqual(float(box.size.Z), 70.1)
+
+        result = export_build123d_project(
+            "projects/world-cup-neighbors",
+            output_dir=Path("outputs"),
+            source_file=source,
+            output_slug="world-cup-neighbors-v3",
+        )
+
+        self.assertEqual(result["project_slug"], "world-cup-neighbors-v3")
+        self.assertTrue(result["step"].endswith("world-cup-neighbors-v3.step"))
+        self.assertTrue(result["stl"].endswith("world-cup-neighbors-v3.stl"))
+        self.assertTrue(result["fits_a1_mini"])
+
+        module_spec = spec_from_file_location("world_cup_neighbors_v3_components_test", source.parent / "components.py")
+        self.assertIsNotNone(module_spec)
+        self.assertIsNotNone(module_spec.loader)
+        components = module_from_spec(module_spec)
+        module_spec.loader.exec_module(components)
+        specs = components.load_specs()
+
+        self.assertEqual(specs["design"]["revision"], "v3b")
+        self.assertEqual(specs["print_constraints"]["target_model"]["base_size_mm"]["z"], 12)
+        dan, carrie = specs["people"]["people"]
+        self.assertEqual(components.character_metrics(dan)["head_width_mm"], 24)
+        self.assertEqual(components.character_metrics(carrie)["head_width_mm"], 24)
+        self.assertGreaterEqual(components.character_metrics(dan)["head_to_height_ratio"], 0.38)
+        self.assertGreaterEqual(components.character_metrics(carrie)["head_to_height_ratio"], 0.40)
+
+    def test_alternate_source_export_does_not_rewrite_project_artifact_manifest(self):
+        from bambu.cad import export_build123d_project
+
+        project = Path("projects/world-cup-neighbors")
+        artifacts = project / "artifacts.json"
+        before = artifacts.read_text()
+
+        result = export_build123d_project(
+            project,
+            output_dir=Path("outputs"),
+            source_file=project / "source" / "v3" / "model.py",
+            output_slug="world-cup-neighbors-v3",
+        )
+
+        self.assertEqual(artifacts.read_text(), before)
+        self.assertEqual(result["artifacts"], {"artifacts": []})
+
 
 if __name__ == "__main__":
     unittest.main()
