@@ -6,18 +6,17 @@ import yaml
 
 
 class WorldCupV2Tests(unittest.TestCase):
-    def test_project_manifest_points_to_v2_build123d_source(self):
+    def test_project_manifest_tracks_current_revision_and_loop_position(self):
         project = yaml.safe_load(Path("projects/world-cup-neighbors/project.yaml").read_text())
 
         self.assertEqual(project["lane"], "build123d")
-        self.assertEqual(project["current_revision"], "v002")
+        self.assertEqual(project["current_revision"], "v4.1")
+        self.assertIn("source/v4/model.py", project["source_files"])
         self.assertIn("source/model.py", project["source_files"])
-        self.assertIn("outputs/world-cup-neighbors.scad", project["source_files"])
-        self.assertEqual(
-            project["next_safe_action"],
-            "run bambu design-check projects/world-cup-neighbors --revision v3 before generating v3 CAD",
-        )
-        self.assertEqual(project["design_revisions"]["v3"]["source_of_truth"], "designs/v3/*.yaml")
+        self.assertIn("record-print-result", project["next_safe_action"])
+        self.assertIn("docs/learning/README.md", project["next_safe_action"])
+        self.assertEqual(project["design_revisions"]["v3"]["status"], "superseded")
+        self.assertIn("printed", project["design_revisions"]["v4"]["status"])
 
     def test_v2_learning_docs_exist_and_capture_print_lessons(self):
         source_readme = Path("projects/world-cup-neighbors/source/README.md").read_text()

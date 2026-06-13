@@ -44,5 +44,5 @@ next_agent_actions:
   - record the v4.1 physical result with bambu record-print-result
   - capture photos under photos/v4-post-print/ and write reviews/009 feedback
   - inspect the known tolerated nubs (cheek rims, glasses-ring bottoms, crossbar bridges)
-  - fold lessons into docs/learning/ and propose v4.2 deltas per docs/learning/README.md
+  - fold lessons into docs/learning/ and propose v4.2 deltas against the designs/v4/*.yaml baselines
   - keep printer contact manual; every new revision re-runs bambu release-check
