@@ -2,11 +2,11 @@ schema_version: 2
 slug: best-buds-chair
 intent: Woman with glasses and tri-color dog on patio chair diorama — Best Buds
 privacy: private
-lane: build123d
+lane: hybrid
 archetype: seated_diorama
 status: cad
 current_revision: v1
-next_safe_action: run release-check and approve renders
+next_safe_action: run meshy concept + export-body, then Shapr3D fuse
 printer:
   model: Bambu Lab A1 mini
   build_volume_mm: [180, 180, 180]

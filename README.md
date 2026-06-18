@@ -2,23 +2,19 @@
 
 Agent-assisted 3D-print preparation for a **Bambu Lab A1 mini**.
 
-Bambu is a public-ready workbench for describing what you want in plain English, letting Codex or Claude help turn it into printable source files, and keeping the actual print step reviewable. It uses build123d as the serious Python CAD backend and keeps OpenSCAD for simple public/remixable models and the current figurine lane.
+Bambu is a photo-first workbench for turning reference images into print-safe build123d caricature dioramas on a **Bambu Lab A1 mini**, with human-gated slicing and printing. build123d is the sole CAD backend for likeness work; OpenSCAD remains in `examples/` for legacy/simple models.
 
 ## What It Does Today
 
-- Checks whether local 3D-printing tools are installed.
-- Exposes printer/material/plate rules as agent-readable context.
-- Creates structured `projects/<slug>/` workspaces with manifests, reviews, measurements, photos placeholders, and artifact indexes.
-- Generates a stylized pair of Brazil-watch-party figurines as OpenSCAD.
-- Builds dry-run slicer commands for Bambu Studio or OrcaSlicer.
-- Builds the current safe prototype through SCAD, STL, and sliced 3MF without printer contact.
-- Reviews build123d STEP/STL outputs through headless FreeCAD and Blender previews without printer contact.
-- Validates agent-readable design specs before CAD generation, so v3 work starts from YAML constraints instead of hand-tweaking model code.
-- Checks the generated `.gcode.3mf` for A1 mini handoff metadata and prints the exact Bambu Studio open command.
-- Gates the actual print path with `bambu release-check`: FreeCAD STEP validity, watertight mesh, connected-patch overhangs, and floating-island reachability in one pass.
-- Audits sliced files against the printer and the owned filament inventory with `bambu qc` (supportless contract, filament types, plate, nozzle, time/material).
-- Keeps private photos, printer credentials, and generated meshes out of git.
-- Refuses to pretend the printer is safe to automate blindly: printing is a human decision after slicer review.
+- **`bambu intake`** — copy reference photo, scaffold specs, emit agent vision prompt.
+- **Archetype profiles** (`seated_diorama`, etc.) with fusion-safe dimension and forbidden-trap gates.
+- **`bambu/cad/` library** — v4 OCCT primitives, heads, animals, furniture, seated diorama composer.
+- **`bambu design-check`** — validate YAML specs before CAD (no hardcoded subject names).
+- **`bambu release-check`** — FreeCAD STEP, watertight mesh, overhangs, floating islands, Blender renders (150px thumbnail + dynamic face closeups).
+- **`bambu render-spec-sheet`** — one-page markdown for human sign-off.
+- MCP parity: `bambu_intake`, `bambu_release_check`, `bambu_qc`.
+- Checks local tools, creates project workspaces, syncs artifact hashes, QC on sliced 3MF.
+- Keeps private photos and generated meshes out of git.
 
 ## Quick Start
 
@@ -26,22 +22,24 @@ Bambu is a public-ready workbench for describing what you want in plain English,
 git clone https://github.com/njrun1804/Bambu.git
 cd Bambu
 uv run bambu doctor
-uv run bambu make-figurines --output outputs/world-cup-neighbors.scad
-uv run bambu slice-plan outputs/world-cup-neighbors.stl --output outputs/world-cup-neighbors.gcode.3mf
+uv run bambu intake ~/path/to/photo.jpg \
+  --intent "Woman with dog on patio chair diorama" \
+  --slug best-buds-chair
+uv run bambu design-check projects/best-buds-chair --revision v1
+uv run bambu release-check projects/best-buds-chair --revision v1 --no-render
 ```
 
-If OpenSCAD is installed, open `outputs/world-cup-neighbors.scad` and export an STL. If Bambu Studio or OrcaSlicer is installed, use the generated slicer command as the starting point, then inspect supports, scale, filament, and first-layer settings before printing.
+Fill `designs/v1/*.yaml` from the reference photo (see `agents/prompts/intake-from-photo.md`), then author or refine `source/v1/model.py`. Legacy OpenSCAD figurines: `examples/world-cup-neighbors/`.
 
 ## Recommended Human-Agent Loop
 
-1. Start with `uv run bambu doctor` or the MCP `bambu_context_view`.
-2. Create a structured workspace with `uv run bambu create-project "<idea>"`.
-3. Choose the lane from the manifest: build123d for serious/dimensional CAD, OpenSCAD for simple public/remixable models, or the current figurine lane.
-4. Generate or revise source before exporting artifacts.
-5. Run `uv run bambu release-check <project> --revision <rev>` until every gate passes, then record artifact hashes with `uv run bambu sync-artifacts <project>`.
-6. Slice in the Bambu Studio GUI (authoritative time/cost; the CLI-exported `.gcode.3mf` will not reopen in the GUI), then run `uv run bambu qc <sliced> --stl <model.stl>` and `uv run bambu handoff`.
-7. Open the sliced project in Bambu Studio, inspect supports, scale, filament, plate side, and first layer. Print only after manual review.
-8. Record the physical result with `uv run bambu record-print-result` before making the next revision.
+1. `uv run bambu doctor` or MCP `bambu_context_view`.
+2. `uv run bambu intake <photo> --intent "..."` — scaffold project + vision prompt.
+3. Agent fills `designs/v1/*.yaml`; run `uv run bambu design-check <project> --revision v1`.
+4. Author `source/v1/model.py` with `bambu.cad.archetypes.*` helpers (Multifuse + single solid).
+5. `uv run bambu release-check <project> --revision v1` until all gates pass; human approves 150px thumbnail + face closeups.
+6. Slice in **Bambu Studio GUI**, then `uv run bambu qc <sliced> --stl <model.stl>` and `uv run bambu handoff`.
+7. Print only after manual review; record with `uv run bambu record-print-result`.
 
 ## Agent Operating Substrate
 

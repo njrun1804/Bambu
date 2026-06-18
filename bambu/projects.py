@@ -15,7 +15,7 @@ from bambu.context import context_view, rules_view
 
 
 PROJECTS_ROOT = Path("projects")
-LANES = {"build123d", "openscad", "figurine"}
+LANES = {"build123d", "openscad", "figurine", "hybrid"}
 OUTCOMES = {"not_printed", "success", "partial_success", "failed"}
 
 
@@ -54,6 +54,12 @@ def create_project(
         directory.mkdir(parents=True, exist_ok=True)
         (directory / ".gitkeep").touch()
 
+    if lane == "hybrid":
+        from bambu.mesh_lane import scaffold_hybrid_tree, write_fusion_manifest_stub
+
+        scaffold_hybrid_tree(project_dir)
+        write_fusion_manifest_stub(project_dir, revision="v1", slug=project_slug)
+
     context = context_view()
     selected_material = _select_material(context["materials"], material)
     manifest = {
@@ -62,9 +68,9 @@ def create_project(
         "intent": intent,
         "privacy": privacy,
         "lane": lane,
-        "archetype": "seated_diorama" if lane == "build123d" else "",
+        "archetype": "seated_diorama" if lane in {"build123d", "hybrid"} else "",
         "status": "design",
-        "current_revision": "v1" if lane == "build123d" else "v001",
+        "current_revision": "v1" if lane in {"build123d", "hybrid"} else "v001",
         "next_safe_action": "run bambu intake or complete design gate",
         "printer": context["printer"],
         "material": selected_material,
@@ -100,7 +106,7 @@ def validate_project(project: dict[str, Any]) -> list[str]:
     if not project.get("intent"):
         errors.append("intent is required")
     if project.get("lane") not in LANES:
-        errors.append("lane must be one of build123d, openscad, figurine")
+        errors.append("lane must be one of build123d, openscad, figurine, hybrid")
     if not project.get("privacy"):
         errors.append("privacy is required")
     if not project.get("printer", {}).get("model"):
@@ -280,7 +286,7 @@ def _select_material(materials: list[dict[str, Any]], name: str) -> dict[str, An
 
 
 def _default_source_files(lane: str) -> list[str]:
-    if lane == "build123d":
+    if lane in {"build123d", "hybrid"}:
         return ["source/v1/model.py"]
     if lane == "openscad":
         return ["source/model.scad"]

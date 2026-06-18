@@ -8,19 +8,25 @@ names the loop's current position in `next_safe_action`; start there.
 ## The loop
 
 ```text
-1. brief / reference sheets      -> designs/<rev>/*.yaml   (specs are GATES, CAD is authored)
-2. bambu design-check            -> specs complete before geometry
-3. author source/<rev>/model.py  -> read occt-step-geometry-rules.md FIRST
-4. bambu release-check           -> FreeCAD + watertight + overhangs + islands + renders
-5. human approves renders        -> face closeups and deck shots, cavity-shaded
-6. Bambu Studio GUI slice        -> authoritative time/cost (read print-path-qc.md)
-7. bambu qc + bambu handoff      -> supportless, owned filament, plate/nozzle, markers
-8. human starts the print        -> manual gate, always
-9. bambu record-print-result     -> outcome + measurements + photos under photos/
-10. reviews/NNN-*.md             -> what the physical object taught us
-11. fold lessons back            -> docs/learning/*.md rules, gate budgets,
+1. bambu intake <photo>         -> projects/<slug>/ + references/intake.yaml (lane: hybrid)
+2. agent vision fills specs     -> designs/<rev>/*.yaml (gates, not CAD source)
+3. bambu design-check           -> specs complete; hybrid requires concept_sheet path
+4. bambu meshy concept + heads  -> concept PNG + mesh/*-head.stl (MESHY_API_KEY)
+5. bambu export-body            -> body STEP with head stubs for Shapr3D
+6. Shapr3D fuse                 -> outputs/<slug>-<rev>-fused.stl (manual)
+7. bambu release-check --stl    -> mesh + overhangs + islands + Blender renders
+8. human approves renders       -> 150px thumbnail + face closeups vs concept sheet
+9. Bambu Studio GUI slice       -> authoritative time/cost (read print-path-qc.md)
+10. bambu qc + bambu handoff    -> supportless, owned filament, plate/nozzle, markers
+11. human starts the print      -> manual gate, always
+12. bambu record-print-result   -> outcome + measurements + photos under photos/
+13. reviews/NNN-*.md            -> what the physical object taught us
+14. fold lessons back           -> docs/learning/*.md rules, gate budgets,
                                     spec defaults, and the next revision's deltas
 ```
+
+Legacy build123d-only loop (functional parts, no Meshy heads): skip steps 4–6;
+use `bambu release-check` on full CSG export instead of `--stl`.
 
 Step 9 intake note: phone photos of the print usually land in the macOS
 Photos library (iCloud sync), not Downloads - export/copy them into
@@ -41,6 +47,8 @@ why `analyze_islands` exists.
   classification, slicer trust hierarchy, proven A1 mini setup.
 - `build123d-figurine-workflow.md` - the v2 learning pass that established
   the figurine lane.
+- `hybrid-lane.md` - Meshy + Shapr3D likeness pipeline (default for photo gifts).
+- `shapr3d-fusion-workflow.md` - manual Shapr3D fusion runbook after export-body.
 - `projects/<slug>/reviews/NNN-*.md` - per-revision evidence, numbered and
   append-only. Build notes before the print, feedback after it.
 

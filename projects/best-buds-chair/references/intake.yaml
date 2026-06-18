@@ -2,7 +2,7 @@ schema_version: 1
 slug: best-buds-chair
 intent: Woman with glasses and tri-color dog on patio chair diorama
 archetype: seated_diorama
-reference_photo: photos/reference/.gitkeep
+reference_photo: photos/reference/patio-reference.jpg
 created_at: "2026-06-18T00:00:00+00:00"
 agent_fill:
   subjects:

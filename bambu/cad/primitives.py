@@ -22,6 +22,12 @@ from build123d import (
 )
 
 
+def head_fusion_stub(*, cx: float, cy: float, cz: float, radius: float = 6.0, height: float = 8.0):
+    """Neck/head cap stub at face_center for Shapr3D Meshy head fusion."""
+
+    return Pos(cx, cy, cz - height / 2.0) * Cylinder(radius, height)
+
+
 def front_extrude(profile, x: float, z: float, y_out: float, depth: float):
     """Extrude a 2D profile from a -Y-facing plane back into the model (+Y)."""
 

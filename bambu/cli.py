@@ -90,7 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
     create.add_argument("intent", help="Plain-English model intent.")
     create.add_argument("--root", type=Path, default=Path("projects"), help="Project workspace root.")
     create.add_argument("--slug", help="Optional project slug. Defaults to a slug from the intent.")
-    create.add_argument("--lane", default="build123d", choices=["build123d", "openscad", "figurine"])
+    create.add_argument("--lane", default="build123d", choices=["build123d", "openscad", "figurine", "hybrid"])
     create.add_argument("--privacy", default="private")
     create.add_argument("--material", default="Bambu PLA Basic")
     create.add_argument("--plate-side", default="deferred")
@@ -120,6 +120,16 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--output-dir", type=Path, default=Path("outputs"))
     export.add_argument("--source-file", type=Path, default=None, help="Alternate build123d source file.")
     export.add_argument("--output-slug", default=None, help="Alternate output artifact name.")
+
+    export_body = subparsers.add_parser(
+        "export-body",
+        help="Export build123d body scaffold (head stubs) to STEP and STL for Shapr3D fusion.",
+    )
+    export_body.add_argument("project", type=Path, help="Project directory containing project.yaml.")
+    export_body.add_argument("--output-dir", type=Path, default=Path("outputs"))
+    export_body.add_argument("--source-file", type=Path, default=None, help="Alternate build123d source file.")
+    export_body.add_argument("--output-slug", default=None, help="Alternate output artifact name.")
+    export_body.add_argument("--revision", default=None, help="Design revision for output slug.")
 
     design_check = subparsers.add_parser(
         "design-check",
@@ -151,6 +161,65 @@ def build_parser() -> argparse.ArgumentParser:
     release.add_argument("--no-render", action="store_true", help="Skip Blender preview rendering.")
     release.add_argument("--outputs-root", type=Path, default=Path("outputs"))
     release.add_argument("--json", type=Path, default=None, help="Optional path to write report JSON.")
+    release.add_argument("--stl", type=Path, default=None, help="Fused STL artifact (skips build123d export).")
+    release.add_argument("--skip-export", action="store_true", help="Use existing outputs instead of re-exporting.")
+    release.add_argument("--skip-freecad", action="store_true", help="Skip FreeCAD STEP gate.")
+    release.add_argument("--body-step", type=Path, default=None, help="Optional body STEP for FreeCAD when reviewing fused STL.")
+
+    review_mesh = subparsers.add_parser(
+        "review-mesh",
+        help="Quick mesh gates and Blender renders on an existing STL.",
+    )
+    review_mesh.add_argument("stl", type=Path, help="STL path to review.")
+    review_mesh.add_argument("--project", type=Path, default=None, help="Project for views and thumbnail spec.")
+    review_mesh.add_argument("--revision", default=None, help="Design revision for views.")
+    review_mesh.add_argument("--body-step", type=Path, default=None, help="Optional body STEP for FreeCAD review.")
+    review_mesh.add_argument("--no-render", action="store_true", help="Skip Blender preview rendering.")
+    review_mesh.add_argument("--outputs-root", type=Path, default=Path("outputs"))
+    review_mesh.add_argument("--json", type=Path, default=None, help="Optional path to write report JSON.")
+
+    mesh_intake_cmd = subparsers.add_parser(
+        "mesh-intake",
+        help="Register a head mesh in projects/<slug>/mesh/ with provenance.",
+    )
+    mesh_intake_cmd.add_argument("project", type=Path, help="Project directory.")
+    mesh_intake_cmd.add_argument("--file", type=Path, required=True, help="STL file to copy into mesh/.")
+    mesh_intake_cmd.add_argument("--role", required=True, help="Artifact role, e.g. head_woman.")
+    mesh_intake_cmd.add_argument("--meshy-task-id", default="", help="Optional Meshy task id for provenance.")
+
+    meshy = subparsers.add_parser("meshy", help="Meshy Pro integration for hybrid lane likeness.")
+    meshy_sub = meshy.add_subparsers(dest="meshy_command", required=True)
+
+    meshy_concept = meshy_sub.add_parser("concept", help="Figure prototype or text-to-image concept sheet.")
+    meshy_concept.add_argument("project", type=Path, help="Project directory.")
+    meshy_concept.add_argument("--photo", type=Path, default=None, help="Override reference photo path.")
+
+    meshy_head = meshy_sub.add_parser("head", help="Image-to-3d head mesh from cropped photo.")
+    meshy_head.add_argument("project", type=Path, help="Project directory.")
+    meshy_head.add_argument("--subject", required=True, choices=["woman", "dog"], help="Head subject id.")
+    meshy_head.add_argument("--crop", type=Path, default=None, help="Override crop image path.")
+
+    meshy_analyze = meshy_sub.add_parser("analyze", help="Free Meshy analyze-printability report.")
+    meshy_analyze.add_argument("project", type=Path, help="Project directory.")
+    meshy_analyze.add_argument("--subject", default=None, help="Subject id for provenance lookup.")
+    meshy_analyze.add_argument("--task-id", default=None, help="Meshy task id to analyze.")
+
+    meshy_repair = meshy_sub.add_parser("repair", help="Repair printability on a prior Meshy task.")
+    meshy_repair.add_argument("project", type=Path, help="Project directory.")
+    meshy_repair.add_argument("--task-id", default=None, help="Input image-to-3d task id.")
+    meshy_repair.add_argument("--subject", default=None, choices=["woman", "dog"])
+
+    meshy_remesh = meshy_sub.add_parser("remesh", help="Remesh a prior Meshy task to lower polycount.")
+    meshy_remesh.add_argument("project", type=Path, help="Project directory.")
+    meshy_remesh.add_argument("--task-id", default=None, help="Input task id.")
+    meshy_remesh.add_argument("--subject", default=None, choices=["woman", "dog"])
+    meshy_remesh.add_argument("--target-polycount", type=int, default=30000)
+
+    meshy_sub.add_parser("balance", help="Print remaining Meshy credits.")
+
+    meshy_poll = meshy_sub.add_parser("poll", help="Poll a Meshy task by type and id.")
+    meshy_poll.add_argument("task_type", choices=["image-to-3d", "figure-prototype", "analyze", "remesh", "repair"])
+    meshy_poll.add_argument("task_id", help="Meshy task id.")
 
     from bambu.intake import archetypes_with_templates
 
@@ -202,12 +271,20 @@ def main(argv: list[str] | None = None) -> int:
         return _sync_artifacts(args)
     if args.command == "export-build123d":
         return _export_build123d(args)
+    if args.command == "export-body":
+        return _export_body(args)
     if args.command == "design-check":
         return _design_check(args)
     if args.command == "qc":
         return _qc(args)
     if args.command == "release-check":
         return _release_check(args)
+    if args.command == "review-mesh":
+        return _review_mesh(args)
+    if args.command == "mesh-intake":
+        return _mesh_intake(args)
+    if args.command == "meshy":
+        return _meshy(args)
     if args.command == "intake":
         return _intake(args)
     if args.command == "render-spec-sheet":
@@ -482,6 +559,153 @@ def _qc(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def _export_body(args: argparse.Namespace) -> int:
+    from bambu.projects import load_project
+
+    project = load_project(args.project / "project.yaml")
+    rev = args.revision or project.get("current_revision", "v1")
+    rev_base = rev.split(".", 1)[0]
+    output_slug = args.output_slug or f"{project['slug']}-{rev_base}-body"
+    result = export_build123d_project(
+        args.project,
+        output_dir=args.output_dir,
+        source_file=args.source_file,
+        output_slug=output_slug,
+        revision=rev,
+        body_only=True,
+    )
+    print("build123d body export")
+    print("--------------------")
+    print(f"STEP: {result['step']}")
+    print(f"STL: {result['stl']}")
+    print(f"bounding box mm: {result['bounding_box_mm']}")
+    print(f"fits A1 mini: {'yes' if result['fits_a1_mini'] else 'no'}")
+    print("Head stubs only — fuse Meshy heads in Shapr3D before release-check --stl.")
+    return 0
+
+
+def _review_mesh(args: argparse.Namespace) -> int:
+    from bambu.review3d import review_mesh_stl
+
+    review = review_mesh_stl(
+        args.stl,
+        project_path=args.project,
+        outputs_root=args.outputs_root,
+        render=not args.no_render,
+        revision=args.revision,
+        body_step=args.body_step,
+        skip_freecad=args.body_step is None,
+    )
+    if args.json:
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(review, indent=2) + "\n")
+    print("Mesh review")
+    print("-----------")
+    print(f"STL: {review.get('stl')}")
+    print(f"watertight: {'yes' if review.get('mesh', {}).get('watertight_manifold') else 'no'}")
+    print(f"overhangs ok: {'yes' if review.get('overhangs', {}).get('ok') else 'no'}")
+    print(f"islands ok: {'yes' if review.get('islands', {}).get('ok') else 'no'}")
+    if not args.no_render:
+        print(f"renders: {len(review.get('blender', {}).get('paths', []))}")
+    print(review.get("manual_boundary", ""))
+    ok = (
+        review.get("mesh", {}).get("watertight_manifold")
+        and review.get("overhangs", {}).get("ok")
+        and review.get("islands", {}).get("ok")
+    )
+    return 0 if ok else 1
+
+
+def _mesh_intake(args: argparse.Namespace) -> int:
+    from bambu.mesh_lane import mesh_intake
+
+    result = mesh_intake(
+        args.project,
+        file=args.file,
+        role=args.role,
+        meshy_task_id=args.meshy_task_id,
+    )
+    print(f"Mesh intake: {result['mesh_path']} ({result['role']})")
+    return 0
+
+
+def _meshy(args: argparse.Namespace) -> int:
+    from bambu.meshy import MeshyClient, MeshyError, meshy_analyze, meshy_concept, meshy_head
+
+    poll_paths = {
+        "image-to-3d": "v1/image-to-3d",
+        "figure-prototype": "creative-lab/figure/v1/prototype",
+        "analyze": "v1/print/analyze",
+        "remesh": "v1/remesh",
+        "repair": "v1/print/repair",
+    }
+    try:
+        if args.meshy_command == "concept":
+            client = MeshyClient.from_env() if not getattr(args, "photo", None) else None
+            result = meshy_concept(args.project, photo=args.photo, client=client)
+            print(f"Concept sheet: {result['concept_path']}")
+            return 0
+        if args.meshy_command == "head":
+            result = meshy_head(args.project, subject=args.subject, crop=args.crop)
+            print(f"Head STL: {result['stl_path']}")
+            return 0
+        if args.meshy_command == "analyze":
+            if not args.subject and not args.task_id:
+                raise MeshyError("analyze requires --subject or --task-id")
+            result = meshy_analyze(args.project, subject=args.subject, input_task_id=args.task_id)
+            print(f"Analyze report: {result['report_path']}")
+            return 0
+        if args.meshy_command == "repair":
+            client = MeshyClient.from_env()
+            if args.task_id:
+                task = client.repair_printability(input_task_id=args.task_id)
+                print(json.dumps(task, indent=2))
+            elif args.subject:
+                import yaml
+
+                prov_path = args.project / "mesh" / "provenance.yaml"
+                prov = yaml.safe_load(prov_path.read_text()) if prov_path.exists() else {}
+                task_id = (prov.get("heads", {}).get(args.subject) or {}).get("task_id")
+                if not task_id:
+                    raise MeshyError(f"No task_id for subject {args.subject} in mesh/provenance.yaml")
+                task = client.repair_printability(input_task_id=task_id)
+                print(json.dumps(task, indent=2))
+            else:
+                raise MeshyError("repair requires --task-id or --subject")
+            return 0
+        if args.meshy_command == "remesh":
+            client = MeshyClient.from_env()
+            if args.task_id:
+                task = client.remesh(input_task_id=args.task_id, target_polycount=args.target_polycount)
+                print(json.dumps(task, indent=2))
+            elif args.subject:
+                import yaml
+
+                prov_path = args.project / "mesh" / "provenance.yaml"
+                prov = yaml.safe_load(prov_path.read_text()) if prov_path.exists() else {}
+                task_id = (prov.get("heads", {}).get(args.subject) or {}).get("task_id")
+                if not task_id:
+                    raise MeshyError(f"No task_id for subject {args.subject} in mesh/provenance.yaml")
+                task = client.remesh(input_task_id=task_id, target_polycount=args.target_polycount)
+                print(json.dumps(task, indent=2))
+            else:
+                raise MeshyError("remesh requires --task-id or --subject")
+            return 0
+        if args.meshy_command == "balance":
+            print(json.dumps(MeshyClient.from_env().balance(), indent=2))
+            return 0
+        if args.meshy_command == "poll":
+            client = MeshyClient.from_env()
+            path = poll_paths[args.task_type]
+            task = client.get_task(path, args.task_id)
+            print(json.dumps(task, indent=2))
+            return 0
+    except MeshyError as exc:
+        print(f"meshy error: {exc}", file=sys.stderr)
+        return 1
+    raise AssertionError(f"Unhandled meshy command: {args.meshy_command}")
+
+
 def _release_check(args: argparse.Namespace) -> int:
     """Every release gate in one pass with a unified verdict."""
 
@@ -513,6 +737,10 @@ def _release_check(args: argparse.Namespace) -> int:
         output_slug=args.output_slug,
         views=views,
         revision=args.revision,
+        stl_path=args.stl,
+        skip_export=args.skip_export or bool(args.stl),
+        skip_freecad=args.skip_freecad or bool(args.stl),
+        body_step=args.body_step,
     )
     freecad = review.get("freecad", {})
     mesh = review.get("mesh", {})
@@ -521,11 +749,14 @@ def _release_check(args: argparse.Namespace) -> int:
     blender = review.get("blender", {})
 
     gates.append(("fits A1 mini", bool(review.get("fits_a1_mini")), str(review.get("bounding_box_mm"))))
+    freecad_skipped = freecad.get("skipped") or args.skip_freecad or bool(args.stl)
+    freecad_ok = freecad_skipped or (freecad.get("available", False) and not freecad.get("warnings"))
     gates.append(
         (
             "FreeCAD geometry",
-            freecad.get("available", False) and not freecad.get("warnings"),
-            "valid=%s closed=%s solids=%s blocking=%s"
+            freecad_ok,
+            freecad.get("reason")
+            or "valid=%s closed=%s solids=%s blocking=%s"
             % (
                 freecad.get("is_valid"),
                 freecad.get("is_closed"),

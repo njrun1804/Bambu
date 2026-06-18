@@ -279,6 +279,100 @@ def render_blender_previews(
     }
 
 
+def review_mesh_stl(
+    stl_path: Path | str,
+    *,
+    project_path: Path | str | None = None,
+    outputs_root: Path = Path("outputs"),
+    render: bool = True,
+    views: list[dict[str, Any]] | None = None,
+    revision: str | None = None,
+    body_step: Path | str | None = None,
+    skip_freecad: bool = True,
+) -> dict[str, Any]:
+    """Run mesh gates and Blender renders on an existing fused STL."""
+
+    stl = Path(stl_path)
+    if not stl.exists():
+        raise FileNotFoundError(stl)
+
+    project_slug = stl.stem
+    rev = revision or "v1"
+    if project_path:
+        project = Path(project_path)
+        manifest = load_project(project / "project.yaml")
+        project_slug = manifest["slug"]
+        rev = revision or manifest.get("current_revision", "v1")
+        if views is None:
+            views = load_review_views(project, revision=rev)
+    elif views is None:
+        views = list(DEFAULT_PREVIEW_VIEWS)
+
+    review_dir = outputs_root / "review" / f"{project_slug}-{rev}-fused"
+    mesh_report = inspect_mesh(stl)
+    overhang_report = analyze_overhangs(stl)
+    island_report = analyze_islands(stl)
+
+    freecad_report: dict[str, Any] = {"available": False, "skipped": True, "reason": "fused STL path"}
+    if body_step and not skip_freecad:
+        step = Path(body_step)
+        freecad_report = inspect_step_with_freecad(step, review_dir / "freecad_body_review.json")
+
+    thumbnail_px = None
+    if project_path:
+        thumbnail_px = _thumbnail_size_from_spec(Path(project_path), rev)
+
+    blender_report: dict[str, Any] = {"available": False, "paths": []}
+    paint_guide_report: dict[str, Any] = {"available": False, "paths": []}
+    if render:
+        blender_report = render_blender_previews(stl, review_dir, views=views, thumbnail_px=thumbnail_px)
+        paint_guide_report = render_blender_previews(
+            stl, review_dir / "paint-guide", views=views, paint_guide=True
+        )
+
+    bounding_box = _stl_bounding_box_mm(stl)
+    fits = True
+    if project_path:
+        manifest = load_project(Path(project_path) / "project.yaml")
+        fits = _fits_volume(bounding_box, manifest["printer"]["build_volume_mm"])
+
+    return {
+        "project": project_slug,
+        "revision": rev,
+        "step": str(body_step) if body_step else None,
+        "stl": str(stl),
+        "bounding_box_mm": bounding_box,
+        "fits_a1_mini": fits,
+        "freecad": freecad_report,
+        "mesh": mesh_report,
+        "overhangs": overhang_report,
+        "islands": island_report,
+        "blender": blender_report,
+        "paint_guide": paint_guide_report,
+        "thumbnail_px": thumbnail_px,
+        "artifact_count": 0,
+        "printer_contact": False,
+        "manual_boundary": "Fused STL review. Compare Blender face closeups to concept sheet before slice.",
+        "source": "fused_stl",
+    }
+
+
+def _stl_bounding_box_mm(stl_path: Path) -> list[float]:
+    from bambu.mesh import load_binary_stl
+
+    mesh = load_binary_stl(stl_path)
+    if not mesh.points:
+        return [0.0, 0.0, 0.0]
+    xs = [p[0] for p in mesh.points]
+    ys = [p[1] for p in mesh.points]
+    zs = [p[2] for p in mesh.points]
+    return [max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs)]
+
+
+def _fits_volume(bounding_box_mm: list[float], build_volume_mm: list[float]) -> bool:
+    return all(size <= limit for size, limit in zip(bounding_box_mm, build_volume_mm))
+
+
 def review_project_3d(
     project_path: Path | str,
     *,
@@ -288,8 +382,24 @@ def review_project_3d(
     output_slug: str | None = None,
     views: list[dict[str, Any]] | None = None,
     revision: str | None = None,
+    stl_path: Path | str | None = None,
+    skip_export: bool = False,
+    skip_freecad: bool = False,
+    body_step: Path | str | None = None,
 ) -> dict[str, Any]:
     """Export, inspect, render, and summarize a project without printer contact."""
+
+    if stl_path:
+        return review_mesh_stl(
+            stl_path,
+            project_path=project_path,
+            outputs_root=outputs_root,
+            render=render,
+            views=views,
+            revision=revision,
+            body_step=body_step,
+            skip_freecad=skip_freecad,
+        )
 
     project = Path(project_path)
     manifest = load_project(project / "project.yaml")
@@ -297,18 +407,37 @@ def review_project_3d(
     if views is None:
         views = load_review_views(project, revision=rev)
 
-    export = export_build123d_project(
-        project,
-        output_dir=outputs_root,
-        source_file=source_file,
-        output_slug=output_slug,
-        revision=rev,
-    )
+    export: dict[str, Any]
+    if skip_export:
+        slug = output_slug or manifest["slug"]
+        step = outputs_root / f"{slug}.step"
+        stl = outputs_root / f"{slug}.stl"
+        if not stl.exists():
+            raise FileNotFoundError(f"--skip-export requires existing STL at {stl}")
+        export = {
+            "project_slug": slug,
+            "step": str(step) if step.exists() else None,
+            "stl": str(stl),
+            "bounding_box_mm": inspect_mesh(stl).get("bounding_box_mm", [0, 0, 0]),
+            "fits_a1_mini": True,
+        }
+    else:
+        export = export_build123d_project(
+            project,
+            output_dir=outputs_root,
+            source_file=source_file,
+            output_slug=output_slug,
+            revision=rev,
+        )
     artifacts = sync_project_artifacts(project, outputs_root=outputs_root)
-    step = Path(export["step"])
+    step = Path(export["step"]) if export.get("step") else None
     stl = Path(export["stl"])
     review_dir = outputs_root / "review" / export["project_slug"]
-    freecad_report = inspect_step_with_freecad(step, review_dir / "freecad_review.json")
+    freecad_report: dict[str, Any] = {"available": False, "skipped": skip_freecad}
+    if skip_freecad:
+        freecad_report["reason"] = "skipped by flag"
+    elif step and step.exists():
+        freecad_report = inspect_step_with_freecad(step, review_dir / "freecad_review.json")
     mesh_report = inspect_mesh(stl)
     overhang_report = analyze_overhangs(stl)
     island_report = analyze_islands(stl)
@@ -327,7 +456,7 @@ def review_project_3d(
     return {
         "project": export["project_slug"],
         "revision": rev,
-        "step": str(step),
+        "step": str(step) if step else None,
         "stl": str(stl),
         "bounding_box_mm": export["bounding_box_mm"],
         "fits_a1_mini": export["fits_a1_mini"],

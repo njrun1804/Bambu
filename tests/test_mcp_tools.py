@@ -85,8 +85,28 @@ class McpToolTests(unittest.TestCase):
         rules = bambu_rules_view()
 
         self.assertEqual(context["printer"]["model"], "Bambu Lab A1 mini")
-        self.assertEqual(rules["cad_backends"]["serious"], "build123d")
+        self.assertEqual(rules["cad_backends"]["likeness"], "hybrid")
         self.assertEqual(rules["printer_contact"], "manual_only")
+
+    def test_mcp_meshy_balance_mocked(self):
+        from bambu.mcp_server import bambu_meshy_balance
+
+        with patch("bambu.meshy.MeshyClient.from_env") as factory:
+            factory.return_value.balance.return_value = {"balance": 100}
+            result = bambu_meshy_balance()
+        self.assertEqual(result["balance"], 100)
+
+    def test_mcp_review_mesh_reports_ok(self):
+        from bambu.mcp_server import bambu_review_mesh
+
+        with patch("bambu.review3d.review_mesh_stl") as review:
+            review.return_value = {
+                "mesh": {"watertight_manifold": True},
+                "overhangs": {"ok": True},
+                "islands": {"ok": True},
+            }
+            result = bambu_review_mesh("outputs/test.stl", no_render=True)
+        self.assertTrue(result["ok"])
 
     def test_mcp_create_project_and_project_view(self):
         from bambu.mcp_server import bambu_create_project, bambu_project_view

@@ -37,6 +37,10 @@ def rules_view() -> dict[str, Any]:
             "serious": "build123d",
             "simple_public": "openscad",
             "figurine_first_pass": "openscad",
+            "likeness": "hybrid",
+            "mesh_generation": "meshy",
+            "mesh_fusion": "shapr3d",
+            "mesh_review": "blender",
             "mesh_later": "blender",
         },
         "slicing": {

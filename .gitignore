@@ -16,6 +16,10 @@ build/
 private/
 projects/*/photos/*
 !projects/*/photos/.gitkeep
+projects/*/mesh/*
+!projects/*/mesh/.gitkeep
+!projects/*/mesh/NEXT_STEPS.md
+!projects/*/mesh/provenance.yaml
 .env
 *.local.json
 *.local.yaml

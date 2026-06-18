@@ -61,12 +61,19 @@ dependencies = [
     { name = "pyyaml" },
 ]
 
+[package.optional-dependencies]
+meshy = [
+    { name = "httpx" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "build123d", specifier = ">=0.10.0" },
+    { name = "httpx", marker = "extra == 'meshy'", specifier = ">=0.27.0" },
     { name = "mcp", specifier = ">=1.12.4" },
     { name = "pyyaml", specifier = ">=6.0.3" },
 ]
+provides-extras = ["meshy"]
 
 [[package]]
 name = "build123d"

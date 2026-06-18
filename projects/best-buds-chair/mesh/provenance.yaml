@@ -1,0 +1,89 @@
+status: meshy_pipeline_complete
+balance_check:
+  attempted_at: "2026-06-18T22:46:00+00:00"
+  http_status: 200
+  balance_before: 1100
+  balance_after: 1036
+reference_photo: photos/reference/patio-reference.jpg
+reference_source: private/references/clear-right-pair.jpg
+crops:
+  woman: photos/reference/crop-woman.jpg
+  dog: photos/reference/crop-dog.jpg
+concept:
+  task_id: 019edce9-d25c-7b7b-8c40-adba2a816cc7
+  endpoint: creative-lab/figure/v1/prototype
+  artifact: photos/reference/concept-meshy.png
+  credits: 6
+heads:
+  woman:
+    task_id: 019edcea-1a56-7f33-b394-3595b93c350a
+    endpoint: v1/image-to-3d
+    credits: 20
+    artifact: mesh/woman-head.stl
+  dog:
+    task_id: 019edceb-06c8-7b99-a660-4c74e4f4b725
+    endpoint: v1/image-to-3d
+    credits: 20
+    artifact: mesh/dog-head.stl
+  head_woman:
+    role: head_woman
+    artifact: mesh/woman-head.stl
+    sha256: 87c46cb9ede8f8c1d7505b6470be6d37edf485ddc0fc09ba92bf062144ba0131
+    updated_at: "2026-06-18T22:47:30+00:00"
+    task_id: 019edcea-1a56-7f33-b394-3595b93c350a
+    endpoint: v1/image-to-3d
+  head_dog:
+    role: head_dog
+    artifact: mesh/dog-head.stl
+    sha256: 6cb288f55afd614bd792ce3df8c08837db95490ef4f4c7c568515cc10e6112cf
+    updated_at: "2026-06-18T22:48:14+00:00"
+    task_id: 019edceb-06c8-7b99-a660-4c74e4f4b725
+    endpoint: v1/image-to-3d
+analyze:
+  supported: true
+  endpoint: v1/print/analyze
+  attempted_at: "2026-06-18T23:18:00+00:00"
+  woman:
+    analyze_task_id: 019edcf4-d872-7024-8d50-0546feff336b
+    input_task_id: 019edcea-1a56-7f33-b394-3595b93c350a
+    report: mesh/analyze-woman.json
+    status: SUCCEEDED
+    printability_status: warning
+    issue_count: 2
+    error_count: 0
+    warning_count: 2
+    metrics:
+      is_watertight: false
+      volume: 0.39615177774098714
+      non_manifold_edges: 10
+      degenerate_faces: 0
+      holes: 0
+    consumed_credits: 0
+  dog:
+    analyze_task_id: 019edcf5-e93a-7047-a616-272de9ce43af
+    input_task_id: 019edceb-06c8-7b99-a660-4c74e4f4b725
+    report: mesh/analyze-dog.json
+    status: SUCCEEDED
+    printability_status: warning
+    issue_count: 2
+    error_count: 0
+    warning_count: 2
+    metrics:
+      is_watertight: false
+      volume: 0.12268079304774125
+      non_manifold_edges: 27
+      degenerate_faces: 0
+      holes: 0
+    consumed_credits: 0
+credits_used: 64
+errors: []
+fusion_readiness:
+  body_step: outputs/best-buds-chair-v1-body.step
+  body_step_exists: true
+  woman_head_stl: mesh/woman-head.stl
+  woman_head_exists: true
+  dog_head_stl: mesh/dog-head.stl
+  dog_head_exists: true
+  fused_stl: outputs/best-buds-chair-v1-fused.stl
+  fused_exists: false
+  ready_for_shapr3d: true

@@ -19,14 +19,19 @@ def export_build123d_project(
     model_symbol: str = "model",
     output_slug: str | None = None,
     revision: str | None = None,
+    body_only: bool = False,
 ) -> dict[str, Any]:
     """Export a build123d project model to STEP and STL and record artifacts."""
 
     project_dir = Path(project_path)
     project = load_project(project_dir / "project.yaml")
     slug = output_slug or project["slug"]
+    rev = revision or project.get("current_revision", "v1")
+    if body_only and output_slug is None:
+        slug = f"{project['slug']}-{rev.split('.')[0]}-body"
+    symbol = "body_model" if body_only else model_symbol
     source = _resolve_source_file(project_dir, project, source_file, revision=revision)
-    model = load_build123d_model(source, model_symbol=model_symbol)
+    model = load_build123d_model(source, model_symbol=symbol)
     export_step, export_stl = _build123d_exporters()
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -47,6 +52,26 @@ def export_build123d_project(
         "artifacts": artifacts,
         "manual_boundary": "Open exported artifacts in CAD/slicer tools for review before printing.",
     }
+
+
+def export_build123d_body(
+    project_path: Path | str,
+    *,
+    output_dir: Path = Path("outputs"),
+    source_file: Path | None = None,
+    output_slug: str | None = None,
+    revision: str | None = None,
+) -> dict[str, Any]:
+    """Export body scaffold (head stubs) STEP/STL for Shapr3D fusion."""
+
+    return export_build123d_project(
+        project_path,
+        output_dir=output_dir,
+        source_file=source_file,
+        output_slug=output_slug,
+        revision=revision,
+        body_only=True,
+    )
 
 
 def _resolve_source_file(

@@ -90,7 +90,13 @@ def run_intake(
         archetype=archetype,
         privacy=privacy,
         material=material,
+        lane="hybrid",
     )
+
+    from bambu.mesh_lane import scaffold_hybrid_tree, write_fusion_manifest_stub
+
+    scaffold_hybrid_tree(project_dir)
+    write_fusion_manifest_stub(project_dir, revision="v1", slug=project_slug)
 
     prompt = load_intake_prompt(project_dir)
     return {
@@ -106,8 +112,11 @@ def run_intake(
         "next_steps": [
             f"Fill designs/v1/*.yaml using vision on {dest_photo}",
             f"Run: uv run bambu design-check {project_dir} --revision v1",
+            f"Run: uv run bambu meshy concept {project_dir} (requires MESHY_API_KEY)",
             f"Author source/v1/model.py using bambu.cad.archetypes.{archetype}",
-            f"Run: uv run bambu release-check {project_dir} --revision v1 --no-render",
+            f"Run: uv run bambu export-body {project_dir} --revision v1",
+            "Shapr3D fuse per docs/learning/shapr3d-fusion-workflow.md",
+            f"Run: uv run bambu release-check {project_dir} --revision v1 --stl outputs/<slug>-v1-fused.stl --skip-export --skip-freecad",
         ],
     }
 
@@ -146,7 +155,17 @@ def classify_archetype_from_intent(intent: str) -> str:
 
 
 def _scaffold_project_tree(project_dir: Path, *, archetype: str) -> None:
-    for child in ("source/v1", "designs/v1", "reviews", "measurements", "photos", "references", "references/ai-concepts"):
+    for child in (
+        "source/v1",
+        "designs/v1",
+        "reviews",
+        "measurements",
+        "photos",
+        "references",
+        "references/ai-concepts",
+        "fusion",
+        "mesh",
+    ):
         directory = project_dir / child
         directory.mkdir(parents=True, exist_ok=True)
         gitkeep = directory / ".gitkeep"
@@ -203,6 +222,7 @@ def _write_project_manifest(
     archetype: str,
     privacy: str,
     material: str,
+    lane: str = "hybrid",
 ) -> dict[str, Any]:
     context = context_view()
     selected_material = next(m for m in context["materials"] if m["name"] == material)
@@ -211,7 +231,7 @@ def _write_project_manifest(
         "slug": slug,
         "intent": intent,
         "privacy": privacy,
-        "lane": "build123d",
+        "lane": lane,
         "archetype": archetype,
         "status": "intake",
         "current_revision": "v1",

@@ -23,3 +23,17 @@ acceptance_thresholds:
   freecad_validity: valid_and_closed_single_solid
   blocking_geometry_errors: zero
   stl_mesh: watertight_manifold_required
+shapr3d_handoff:
+  body_step: outputs/best-buds-chair-v1-body.step
+  fused_stl: outputs/best-buds-chair-v1-fused.stl
+  note: Fuse Meshy heads to body stubs; export fused STL for release-check.
+concept_sheet:
+  path: photos/reference/concept-meshy.png
+  role: visual acceptance target — compare Blender face closeups before print
+shapr3d_handoff:
+  body_step: outputs/best-buds-chair-v1-body.step
+  fused_stl: outputs/best-buds-chair-v1-fused.stl
+  note: Fuse Meshy heads to body stubs; export fused STL for release-check.
+concept_sheet:
+  path: photos/reference/concept-meshy.png
+  role: visual acceptance target — compare Blender face closeups before print

@@ -34,6 +34,11 @@ def load_design_spec(project_path: Path | str, *, revision: str = "v3") -> dict[
 
     project = Path(project_path)
     design_dir = project / "designs" / revision
+    manifest_path = project / "project.yaml"
+    lane = ""
+    if manifest_path.exists():
+        manifest = yaml.safe_load(manifest_path.read_text()) or {}
+        lane = manifest.get("lane", "")
     files: dict[str, Any] = {}
     missing: list[str] = []
     for key, filename in SPEC_FILES.items():
@@ -50,6 +55,7 @@ def load_design_spec(project_path: Path | str, *, revision: str = "v3") -> dict[
         "project_path": str(project),
         "revision": revision,
         "design_dir": str(design_dir),
+        "lane": lane,
         "files": files,
         "missing_files": missing,
     }
@@ -148,6 +154,14 @@ def validate_design_spec(spec: dict[str, Any]) -> dict[str, Any]:
     if not visual.get("human_review_questions"):
         errors.append("visual_acceptance.human_review_questions is required")
 
+    lane = spec.get("lane", "")
+    concept = design.get("reference_inputs", {}).get("concept_sheet", {})
+    if lane == "hybrid":
+        if not concept.get("path"):
+            errors.append("design.reference_inputs.concept_sheet.path is required when lane is hybrid")
+        if not concept.get("role"):
+            warnings.append("design.reference_inputs.concept_sheet.role should describe visual acceptance target")
+
     review_tools = build_plan.get("review_tools", {})
     agent_tools = review_tools.get("agent", [])
     manual_tools = review_tools.get("manual", [])
@@ -177,6 +191,7 @@ def validate_design_spec(spec: dict[str, Any]) -> dict[str, Any]:
         "visual_review_specified": bool(required_views),
         "agent_review_tools_specified": all(tool in agent_tools for tool in ("FreeCAD", "Blender")),
         "forbidden_traps_documented": bool(forbidden_traps),
+        "concept_sheet_hybrid": not (lane == "hybrid" and not concept.get("path")),
     }
 
     return {
@@ -284,5 +299,36 @@ def render_spec_sheet(project_path: Path | str, *, revision: str = "v1") -> str:
                 f"- Question: {tc.get('question', '')}",
             ]
         )
+
+    concept = design.get("reference_inputs", {}).get("concept_sheet", {})
+    if spec.get("lane") == "hybrid" or concept.get("path"):
+        lines.extend(["", "## Concept sheet (visual acceptance target)", ""])
+        if concept.get("path"):
+            lines.append(f"- Path: `{concept['path']}`")
+        if concept.get("role"):
+            lines.append(f"- Role: {concept['role']}")
+        lines.extend(
+            [
+                "",
+                "## Hybrid acceptance checklist",
+                "",
+                "Compare Meshy concept PNG to Blender face closeups before approving slice:",
+                "",
+                "- [ ] Woman: rectangular glasses shape matches concept",
+                "- [ ] Woman: hair mass and silhouette readable at thumbnail",
+                "- [ ] Dog: ears and muzzle visible from front closeup",
+                "- [ ] Dog: reads as dog, not cushion or blob",
+                "- [ ] Chair frame and nameplate still readable",
+                "- [ ] Single green PLA legibility without paint",
+            ]
+        )
+
+    shapr = visual.get("shapr3d_handoff", {})
+    if shapr:
+        lines.extend(["", "## Shapr3D handoff", ""])
+        for key in ("body_step", "fused_stl", "note"):
+            if shapr.get(key):
+                lines.append(f"- {key}: {shapr[key]}")
+
     lines.append("")
     return "\n".join(lines)

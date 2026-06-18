@@ -1,45 +1,38 @@
 ---
 name: bambu-operate
-description: Use when operating the Bambu repo for 3D-print generation, setup checks, slicer planning, MCP use, or printer-safe hand holding.
+description: Use when operating the Bambu repo for photo-first 3D-print dioramas, intake, release-check, MCP use, or printer-safe hand holding.
 ---
 
 # Bambu Operate
 
-Bambu turns plain-English print ideas into reviewable source and slicing plans for a Bambu Lab A1 mini.
+Bambu turns reference photos into reviewable build123d dioramas and slicing plans for a Bambu Lab A1 mini.
 
-## Protocol
+## Photo-first protocol
 
-1. Start with `bambu_context_view` and `bambu_doctor` through MCP, or `uv run bambu doctor` in the terminal.
-2. Keep private reference photos under `private/`; never commit them.
-3. For new general work, call `bambu_create_project` first so the request has a manifest, CAD lane, material, plate, revision, and next-safe-action state.
-4. For sophisticated or likeness-based designs, create or update `designs/<revision>/*.yaml` before editing CAD source.
-5. Run `bambu_design_check` or `uv run bambu design-check <project> --revision <revision>` before generating CAD. The structured specs are the source of truth; CAD is downstream.
-6. Use build123d for serious/private/dimensional CAD. Use OpenSCAD for simple public/remixable models and early simple prototypes.
-7. Generate or revise source files only after the design gate passes.
-8. For build123d source, use `bambu_build123d_export`; it exports STEP/STL and bounding-box metadata only.
-9. After any export, call `bambu_sync_artifacts` so generated files are classified and hashed in `artifacts.json`.
-10. For OpenSCAD export, use `bambu_openscad_export_plan`; do not guess the OpenSCAD command.
-11. For slicing, use `bambu_slice_plan`; it should use detected Bambu Studio or OrcaSlicer executables.
-12. For the legacy/simple watch-party prototype, `bambu_generate_world_cup_figurines` remains available for source-only OpenSCAD generation.
-13. For the full safe prototype path, use `bambu_build_world_cup_prototype`; it generates SCAD, STL, and sliced 3MF but does not start the printer.
-14. After a physical print, call `bambu_record_print_result` with outcome, measurements, material state, failure mode, and next revision notes.
-15. Do not start print jobs. Stop at a plan and require manual approval before printer contact.
+1. `bambu_context_view` + `bambu_doctor` (or `uv run bambu doctor`).
+2. `bambu intake <photo> --intent "..."` (MCP: `bambu_intake`) — scaffolds project, copies photo to `photos/reference/`, emits vision prompt.
+3. Fill `designs/v1/*.yaml` using vision on the reference photo (`agents/prompts/intake-from-photo.md`).
+4. `bambu design-check <project> --revision v1` — must pass before CAD.
+5. Author `source/v1/model.py` using `bambu.cad.archetypes.<archetype>` helpers. Multifuse entire scene; assert `len(scene.solids()) == 1`.
+6. `bambu release-check <project> --revision v1` — FreeCAD, watertight mesh, overhangs, islands, Blender renders (150px thumbnail + face closeups).
+7. Human approves renders, then **Bambu Studio GUI slice** (authoritative time/cost).
+8. `bambu qc <sliced.gcode.3mf> --stl <model.stl>` + `bambu handoff`.
+9. Manual print only after review.
+10. `bambu record_print_result` after physical print.
 
-## Safe Surfaces
+## Safe surfaces
 
 - MCP: `uv run bambu-mcp`
-- CLI: `uv run bambu doctor`
-- CLI: `uv run bambu create-project "Shelf bracket" --lane build123d --material "Bambu PETG HF" --plate-side textured`
-- CLI: `uv run bambu design-check projects/world-cup-neighbors --revision v3`
-- CLI: `uv run bambu export-build123d projects/shelf-bracket --output-dir outputs`
-- CLI: `uv run bambu sync-artifacts projects/shelf-bracket --outputs-root outputs`
-- CLI: `uv run bambu make-figurines --output outputs/world-cup-neighbors.scad`
-- CLI: `uv run bambu slice-plan outputs/world-cup-neighbors.stl --output outputs/world-cup-neighbors.gcode.3mf`
-- CLI: `uv run bambu record-print-result projects/shelf-bracket --outcome failed --failure-mode warped_corner --notes "Corner lifted." --next-revision "Add brim."`
+- CLI: `uv run bambu intake ~/photo.jpg --intent "..." --slug my-project`
+- CLI: `uv run bambu design-check projects/best-buds-chair --revision v1`
+- CLI: `uv run bambu release-check projects/best-buds-chair --revision v1 --no-render`
+- CLI: `uv run bambu render-spec-sheet projects/best-buds-chair --revision v1`
+- MCP: `bambu_release_check`, `bambu_qc`, `bambu_intake`
 
-## Hard Rules
+## Hard rules
 
-- Do not commit `private/`, printer credentials, generated STL/3MF/G-code, or private photos.
-- Do not use official Brazil federation crests or trademarked marks unless licensed assets are supplied.
-- Do not treat CAD source as the design brief for v3-style work; update structured specs first.
-- Do not present a slicer command as print-ready until supports, scale, filament, bed type, and first layer have been reviewed.
+- Specs gate acceptance; CAD is hand-authored (no automatic YAML→geometry on day one).
+- build123d for likeness/diorama; OpenSCAD figurine lane is `examples/` only.
+- Do not commit `private/`, photos under `photos/reference/`, or generated STL/3MF/G-code.
+- Do not start print jobs without human approval.
+- World Cup reference project lives in `projects/_archive/world-cup-neighbors/`.

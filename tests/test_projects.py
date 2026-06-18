@@ -42,7 +42,7 @@ class ProjectTests(unittest.TestCase):
         errors = validate_project({"slug": "bad"})
 
         self.assertIn("intent is required", errors)
-        self.assertIn("lane must be one of build123d, openscad, figurine", errors)
+        self.assertIn("lane must be one of build123d, openscad, figurine, hybrid", errors)
         self.assertIn("material.name is required", errors)
 
     def test_write_artifact_manifest_records_hashes(self):

@@ -94,7 +94,9 @@ class DesignPipelineTests(unittest.TestCase):
         report = validate_design_spec(spec)
 
         self.assertTrue(report["ok"], report["errors"])
+        self.assertEqual(spec["lane"], "hybrid")
         self.assertEqual(report["archetype"], "seated_diorama")
+        self.assertTrue(report["gates"]["concept_sheet_hybrid"])
         self.assertIn("woman", report["people_ids"])
         self.assertIn("dog", report["people_ids"])
 

@@ -111,6 +111,10 @@ def bambu_release_check(
     no_render: bool = False,
     source_file: str | None = None,
     output_slug: str | None = None,
+    stl: str | None = None,
+    skip_export: bool = False,
+    skip_freecad: bool = False,
+    body_step: str | None = None,
 ) -> dict[str, Any]:
     """Run every release gate: design-check, export, FreeCAD, mesh, overhangs, islands, renders."""
 
@@ -127,11 +131,18 @@ def bambu_release_check(
         output_slug=output_slug,
         views=views,
         revision=revision,
+        stl_path=Path(stl) if stl else None,
+        skip_export=skip_export or bool(stl),
+        skip_freecad=skip_freecad or bool(stl),
+        body_step=Path(body_step) if body_step else None,
     )
+    freecad = review.get("freecad", {})
+    freecad_skipped = freecad.get("skipped") or skip_freecad or bool(stl)
+    freecad_ok = freecad_skipped or (freecad.get("available") and not freecad.get("warnings"))
     gates = {
         "design_check": design_report["ok"],
         "fits_a1_mini": review.get("fits_a1_mini"),
-        "freecad": review.get("freecad", {}).get("available") and not review.get("freecad", {}).get("warnings"),
+        "freecad": freecad_ok,
         "mesh_watertight": review.get("mesh", {}).get("watertight_manifold"),
         "overhangs": review.get("overhangs", {}).get("ok"),
         "islands": review.get("islands", {}).get("ok"),
@@ -144,6 +155,59 @@ def bambu_release_check(
         "design": design_report,
         "review": review,
     }
+
+
+def bambu_review_mesh(
+    stl: str,
+    project: str | None = None,
+    revision: str = "v1",
+    output_dir: str = "outputs",
+    no_render: bool = False,
+    body_step: str | None = None,
+) -> dict[str, Any]:
+    """Quick mesh gates and Blender renders on an existing STL."""
+
+    from bambu.review3d import review_mesh_stl
+
+    review = review_mesh_stl(
+        Path(stl),
+        project_path=Path(project) if project else None,
+        outputs_root=Path(output_dir),
+        render=not no_render,
+        revision=revision,
+        body_step=Path(body_step) if body_step else None,
+        skip_freecad=body_step is None,
+    )
+    ok = (
+        review.get("mesh", {}).get("watertight_manifold")
+        and review.get("overhangs", {}).get("ok")
+        and review.get("islands", {}).get("ok")
+    )
+    return {"ok": ok, "review": review}
+
+
+def bambu_meshy_concept(project: str, photo: str | None = None) -> dict[str, Any]:
+    from bambu.meshy import meshy_concept
+
+    return meshy_concept(Path(project), photo=Path(photo) if photo else None)
+
+
+def bambu_meshy_head(project: str, subject: str, crop: str | None = None) -> dict[str, Any]:
+    from bambu.meshy import meshy_head
+
+    return meshy_head(Path(project), subject=subject, crop=Path(crop) if crop else None)
+
+
+def bambu_meshy_balance() -> dict[str, Any]:
+    from bambu.meshy import MeshyClient
+
+    return MeshyClient.from_env().balance()
+
+
+def bambu_meshy_analyze(project: str, subject: str | None = None, task_id: str | None = None) -> dict[str, Any]:
+    from bambu.meshy import meshy_analyze
+
+    return meshy_analyze(Path(project), subject=subject, input_task_id=task_id)
 
 
 def bambu_qc(
@@ -332,6 +396,11 @@ def _build_mcp():
     server.tool()(bambu_intake)
     server.tool()(bambu_render_spec_sheet)
     server.tool()(bambu_release_check)
+    server.tool()(bambu_review_mesh)
+    server.tool()(bambu_meshy_concept)
+    server.tool()(bambu_meshy_head)
+    server.tool()(bambu_meshy_balance)
+    server.tool()(bambu_meshy_analyze)
     server.tool()(bambu_qc)
     server.tool()(bambu_sync_artifacts)
     server.tool()(bambu_build123d_export)
