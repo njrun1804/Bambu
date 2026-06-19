@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import hashlib
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -11,11 +13,21 @@ import yaml
 
 from bambu.projects import slugify, validate_project, write_artifact_manifest
 from bambu.context import context_view
+from bambu.reference_validation import KNOWN_WRONG_REFERENCE_MARKERS
 
 
 ARCHETYPES = ("seated_diorama", "standing_figurines", "relief_plaque")
 SPEC_TEMPLATE_ROOT = Path(__file__).resolve().parent / "spec_templates"
 PROMPT_PATH = Path("agents/prompts/intake-from-photo.md")
+REPO_ROOT = Path(__file__).resolve().parent.parent
+CURSOR_WORKSPACE_STORAGE = (
+    Path.home() / "Library/Application Support/Cursor/User/workspaceStorage"
+)
+CURSOR_UPLOAD_SENTINELS = frozenset({"@cursor", "cursor", "cursor-upload", "latest"})
+FORBIDDEN_DEFAULT_REFERENCES = (
+    REPO_ROOT / "private/references/clear-right-pair.jpg",
+    REPO_ROOT / "private/references/group-right-pair.jpg",
+)
 
 
 def archetypes_with_templates() -> tuple[str, ...]:
@@ -37,6 +49,159 @@ def _fill_prompt_template(template: str, **values: str) -> str:
     return filled
 
 
+def find_cursor_upload_photos() -> list[Path]:
+    """Return chat-upload images from Cursor workspaceStorage caches, newest first."""
+
+    if not CURSOR_WORKSPACE_STORAGE.is_dir():
+        return []
+    uploads: list[Path] = []
+    for images_dir in CURSOR_WORKSPACE_STORAGE.glob("*/images"):
+        uploads.extend(
+            path
+            for path in images_dir.iterdir()
+            if path.is_file() and path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".heic"}
+        )
+    return sorted(uploads, key=lambda path: path.stat().st_mtime, reverse=True)
+
+
+def _looks_like_cursor_upload_name(name: str) -> bool:
+    lowered = name.lower()
+    return lowered in CURSOR_UPLOAD_SENTINELS or (
+        len(name) >= 32 and any(ch in lowered for ch in ("_", "-"))
+    )
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _reject_wrong_reference(
+    photo_path: Path,
+    *,
+    archetype: str,
+    slug: str | None,
+    force_reference: bool,
+) -> None:
+    if force_reference:
+        return
+
+    resolved = photo_path.resolve()
+    if archetype == "seated_diorama" or slug == "best-buds-chair":
+        photo_digest: str | None = None
+        for forbidden in FORBIDDEN_DEFAULT_REFERENCES:
+            if not forbidden.exists():
+                continue
+            # Block both the literal file and any renamed byte-identical copy: the
+            # original mistake was copying clear-right-pair.jpg to patio-reference.jpg.
+            if resolved == forbidden.resolve():
+                raise ValueError(
+                    f"Refusing default neighbor reference ({forbidden.name}) for "
+                    f"{slug or archetype}. Provide the actual reference photo path or "
+                    "a Cursor chat upload (@cursor)."
+                )
+            if photo_digest is None:
+                photo_digest = _sha256(resolved)
+            if photo_digest == _sha256(forbidden):
+                raise ValueError(
+                    f"Refusing reference byte-identical to {forbidden.name} (marina "
+                    f"neighbors, not the patio woman+dog+chair scene) for {slug or archetype}. "
+                    "Provide the actual reference photo path or a Cursor chat upload (@cursor)."
+                )
+
+    if any(marker in photo_path.as_posix().lower() for marker in KNOWN_WRONG_REFERENCE_MARKERS):
+        raise ValueError(
+            f"Refusing intake from known wrong reference ({photo_path.name}). "
+            "Use the actual patio woman+dog+chair photo or pass --force-reference after review."
+        )
+
+
+def resolve_photo_path(
+    photo: Path | str,
+    *,
+    slug: str | None = None,
+    archetype: str = "seated_diorama",
+    force_reference: bool = False,
+) -> Path:
+    """Resolve an explicit photo path or a Cursor chat upload cache image."""
+
+    raw = str(photo).strip()
+    if raw in CURSOR_UPLOAD_SENTINELS:
+        uploads = find_cursor_upload_photos()
+        if not uploads:
+            raise FileNotFoundError(
+                "No Cursor chat upload found in workspaceStorage cache. "
+                "Attach the photo in chat or pass an explicit path."
+            )
+        photo_path = uploads[0]
+        _reject_wrong_reference(photo_path, archetype=archetype, slug=slug, force_reference=force_reference)
+        return photo_path
+
+    photo_path = Path(raw).expanduser()
+    candidates = [photo_path]
+    if not photo_path.is_absolute():
+        candidates.append(Path.cwd() / photo_path)
+
+    for candidate in candidates:
+        if candidate.exists():
+            resolved = candidate.resolve()
+            _reject_wrong_reference(
+                resolved, archetype=archetype, slug=slug, force_reference=force_reference
+            )
+            return resolved
+
+    if photo_path.name:
+        for cached in find_cursor_upload_photos():
+            if cached.name == photo_path.name:
+                _reject_wrong_reference(
+                    cached, archetype=archetype, slug=slug, force_reference=force_reference
+                )
+                return cached
+
+    raise FileNotFoundError(f"Reference photo not found: {photo_path}")
+
+
+def _reference_dest_name(source: Path, *, slug: str | None = None) -> str:
+    if slug and _looks_like_cursor_upload_name(source.name):
+        return f"{slug}-reference.jpg"
+    if source.suffix.lower() in {".jpg", ".jpeg"}:
+        return source.name
+    return f"{source.stem}.jpg"
+
+
+def persist_reference_photo(
+    source: Path,
+    project_dir: Path,
+    *,
+    slug: str | None = None,
+    dest_name: str | None = None,
+) -> Path:
+    """Copy or convert a resolved reference photo into photos/reference/."""
+
+    ref_photo_dir = project_dir / "photos" / "reference"
+    ref_photo_dir.mkdir(parents=True, exist_ok=True)
+    filename = dest_name or _reference_dest_name(source, slug=slug)
+    dest_photo = ref_photo_dir / filename
+
+    if source.suffix.lower() in {".jpg", ".jpeg"} and source.resolve() != dest_photo.resolve():
+        shutil.copy2(source, dest_photo)
+        return dest_photo
+
+    try:
+        from PIL import Image
+
+        with Image.open(source) as image:
+            image.convert("RGB").save(dest_photo, format="JPEG", quality=92, optimize=True)
+        return dest_photo
+    except ImportError:
+        dest_photo.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            ["sips", "-s", "format", "jpeg", str(source), "--out", str(dest_photo)],
+            check=True,
+            capture_output=True,
+        )
+        return dest_photo
+
+
 def run_intake(
     photo: Path | str,
     *,
@@ -50,21 +215,13 @@ def run_intake(
 ) -> dict[str, Any]:
     """Copy reference photo, scaffold project tree, and emit agent-fillable intake."""
 
-    photo_path = Path(photo)
-    if not photo_path.exists():
-        raise FileNotFoundError(f"Reference photo not found: {photo_path}")
-
-    wrong_markers = (
-        "clear-right-pair",
-        "group-right-pair",
-        "world-cup-neighbors",
-        "world_cup_neighbors",
+    project_slug = slug or slugify(intent)
+    photo_path = resolve_photo_path(
+        photo,
+        slug=project_slug,
+        archetype=archetype,
+        force_reference=force_reference,
     )
-    if not force_reference and any(marker in photo_path.as_posix().lower() for marker in wrong_markers):
-        raise ValueError(
-            f"Refusing intake from known wrong reference ({photo_path.name}). "
-            "Use the actual patio woman+dog+chair photo or pass --force-reference after review."
-        )
 
     if archetype not in ARCHETYPES:
         raise ValueError(f"archetype must be one of {', '.join(ARCHETYPES)}")
@@ -75,7 +232,6 @@ def run_intake(
             f"archetype {archetype} has no spec templates yet; choose one of {', '.join(supported)}"
         )
 
-    project_slug = slug or slugify(intent)
     project_dir = root / project_slug
     manifest_path = project_dir / "project.yaml"
     if manifest_path.exists():
@@ -84,17 +240,20 @@ def run_intake(
         )
     _scaffold_project_tree(project_dir, archetype=archetype)
 
-    ref_photo_dir = project_dir / "photos" / "reference"
-    ref_photo_dir.mkdir(parents=True, exist_ok=True)
-    dest_photo = ref_photo_dir / photo_path.name
-    shutil.copy2(photo_path, dest_photo)
+    dest_photo = persist_reference_photo(photo_path, project_dir, slug=project_slug)
+    photo_source_note = (
+        f"Cursor upload cache: {photo_path}"
+        if str(photo).strip() in CURSOR_UPLOAD_SENTINELS
+        else None
+    )
 
     intake_yaml = _write_intake_yaml(
         project_dir,
         intent=intent,
         archetype=archetype,
-        photo_rel=f"photos/reference/{photo_path.name}",
+        photo_rel=f"photos/reference/{dest_photo.name}",
         reference_photo_confirmed=force_reference,
+        photo_source=photo_source_note,
     )
     _copy_spec_templates(project_dir, archetype=archetype, revision="v1")
     manifest = _write_project_manifest(
@@ -194,6 +353,7 @@ def _write_intake_yaml(
     archetype: str,
     photo_rel: str,
     reference_photo_confirmed: bool = False,
+    photo_source: str | None = None,
 ) -> Path:
     data = {
         "schema_version": 1,
@@ -213,6 +373,8 @@ def _write_intake_yaml(
         },
         "status": "awaiting_agent_vision",
     }
+    if photo_source:
+        data["reference_source"] = photo_source
     path = project_dir / "references" / "intake.yaml"
     path.write_text(yaml.safe_dump(data, sort_keys=False))
     return path

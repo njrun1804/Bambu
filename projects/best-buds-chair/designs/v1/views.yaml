@@ -5,4 +5,4 @@ views:
   - {name: rear, location: [0, 210, 50], target: [0, 0, 28], ortho_scale: 140}
   - {name: top-plate, location: [0, -8, 250], target: [0, -8, 10], ortho_scale: 145}
   - {name: face_closeup_woman, location: [20, -130, 55], target: [20, 2, 50], ortho_scale: 34}
-  - {name: face_closeup_dog, location: [0, -75, 30], target: [0, -4, 26], ortho_scale: 22}
+  - {name: face_closeup_dog, location: [0, -75, 30], target: [0, -5, 26], ortho_scale: 22}
