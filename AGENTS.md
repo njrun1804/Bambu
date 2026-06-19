@@ -2,6 +2,16 @@
 
 Bambu is a photo-first, safety-conscious 3D-print workbench for a Bambu Lab A1 mini.
 
+Shared cross-repo standards live in `~/CC/Zion/docs/agent-standard.md`. This file is the
+canonical repo contract for Codex and Claude Code.
+
+## Search and Code Intelligence
+
+- Use `rg`/`fd` for live repo evidence and file discovery.
+- Use `ast-grep` for syntax-shape searches.
+- This is a Python repo: use `uv`, `pyproject.toml`, `uv.lock`, `ruff`, and `unittest`.
+- Use Pyright only when it provides useful signal for the touched area.
+
 ## Working Rules
 
 - Keep private reference photos under `projects/<slug>/photos/reference/` (gitignored); never commit them.
