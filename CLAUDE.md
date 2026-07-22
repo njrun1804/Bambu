@@ -1,5 +1,12 @@
 # Bambu
 
+## Agent verification loop
+
+- Each implementation task names and runs its exact targeted checks.
+- Subagents set `CHECK_PROFILE=focused`, run only those commands, and never invoke `check.sh`.
+- Before delivery, root reuses an unchanged strict receipt or runs the authoritative gate once and
+  verifies it with `scripts/check-status.sh --strict`.
+
 Bambu is a photo-first, safety-conscious 3D-print workbench for a Bambu Lab A1 mini.
 
 Workspace-wide rules live in `~/CC/Zion/CLAUDE.md`; this file records only what is specific to
