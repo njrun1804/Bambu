@@ -19,6 +19,6 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    uses: njrun1804-cc/engineering-control-plane/.github/workflows/codeql.yml@e9437849e0c6ebd65ca33929f42728ee7c8e4f87
+    uses: njrun1804-cc/engineering-control-plane/.github/workflows/codeql.yml@9484d1c6f25db3cf865a07f7775bf597d8940271
     with:
       languages: python
