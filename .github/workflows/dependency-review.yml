@@ -14,4 +14,4 @@ permissions:
 
 jobs:
   dependency-review:
-    uses: njrun1804-cc/engineering-control-plane/.github/workflows/dependency-review.yml@e9437849e0c6ebd65ca33929f42728ee7c8e4f87
+    uses: njrun1804-cc/engineering-control-plane/.github/workflows/dependency-review.yml@9484d1c6f25db3cf865a07f7775bf597d8940271
