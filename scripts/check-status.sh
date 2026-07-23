@@ -85,8 +85,86 @@ python_bin() {
   fi
 }
 
+toolchain_fingerprint() {
+  {
+    bash --version 2>&1 | head -n 1
+    git --version 2>&1
+    "$(python_bin)" --version 2>&1
+    if command -v uv >/dev/null 2>&1; then
+      uv --version 2>&1
+    else
+      echo "uv unavailable"
+    fi
+    if command -v uv >/dev/null 2>&1 && [ -f pyproject.toml ]; then
+      project_python="$(uv python find 2>/dev/null || true)"
+      if [ -n "$project_python" ]; then
+        printf 'project-python: '
+        "$project_python" --version 2>&1
+      else
+        echo "project-python unavailable"
+      fi
+    fi
+    requested_node=""
+    if [ -f .node-version ]; then
+      requested_node="$(tr -d '[:space:]' < .node-version)"
+    elif [ -f .nvmrc ]; then
+      requested_node="$(tr -d '[:space:]' < .nvmrc)"
+    fi
+    if [ -n "$requested_node" ] && command -v fnm >/dev/null 2>&1; then
+      printf 'node: '
+      fnm exec --using="$requested_node" -- node --version 2>&1
+      printf 'npm: '
+      fnm exec --using="$requested_node" -- npm --version 2>&1
+    elif command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+      printf 'node: '
+      node --version 2>&1
+      printf 'npm: '
+      npm --version 2>&1
+    else
+      echo "node/npm unavailable"
+    fi
+    for gate_tool in shellcheck luac stylua luacheck; do
+      if git grep -Eq "(^|[^[:alnum:]_-])${gate_tool}([^[:alnum:]_-]|$)" -- \
+        'check.sh' 'scripts/check*.sh' 2>/dev/null; then
+        if command -v "$gate_tool" >/dev/null 2>&1; then
+          printf '%s-path: %s\n' "$gate_tool" "$(command -v "$gate_tool")"
+          printf '%s-version:\n' "$gate_tool"
+          case "$gate_tool" in
+            shellcheck|stylua|luacheck) "$gate_tool" --version 2>&1 || true ;;
+            luac) "$gate_tool" -v 2>&1 || true ;;
+          esac
+        else
+          printf '%s unavailable\n' "$gate_tool"
+        fi
+      fi
+    done
+  } | hash_stream
+}
+
+dependency_fingerprint() {
+  while IFS= read -r dependency_file; do
+    printf '%s\n' "$dependency_file"
+    hash_file "$dependency_file"
+  done < <(
+    git ls-files \
+      | awk -F/ '
+          $NF == "uv.lock" || $NF == "pyproject.toml" ||
+          $NF ~ /^requirements.*\.txt$/ ||
+          $NF == "package-lock.json" || $NF == "npm-shrinkwrap.json" ||
+          $NF == "pnpm-lock.yaml" || $NF == "yarn.lock" ||
+          $NF == "Cargo.lock" || $NF == "go.sum" ||
+          $NF == "poetry.lock" || $NF == "Pipfile.lock" ||
+          $NF == ".python-version" || $NF == ".node-version" || $NF == ".nvmrc" ||
+          $NF == "rust-toolchain" || $NF == "rust-toolchain.toml"
+        ' \
+      | sort
+  ) | hash_stream
+}
+
 current_head="$(git rev-parse HEAD)"
 current_fingerprint="$(worktree_fingerprint)"
+current_toolchain_fingerprint="$(toolchain_fingerprint)"
+current_dependency_fingerprint="$(dependency_fingerprint)"
 current_git_worktree="$(pwd -P)"
 current_git_common_dir="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)"
 
@@ -94,6 +172,8 @@ export CHECK_STATUS_RECEIPT="$receipt"
 export CHECK_STATUS_STRICT="$strict"
 export CHECK_STATUS_HEAD="$current_head"
 export CHECK_STATUS_FINGERPRINT="$current_fingerprint"
+export CHECK_STATUS_TOOLCHAIN_FINGERPRINT="$current_toolchain_fingerprint"
+export CHECK_STATUS_DEPENDENCY_FINGERPRINT="$current_dependency_fingerprint"
 export CHECK_STATUS_GIT_WORKTREE="$current_git_worktree"
 export CHECK_STATUS_GIT_COMMON_DIR="$current_git_common_dir"
 
@@ -109,6 +189,8 @@ receipt_path = Path(os.environ["CHECK_STATUS_RECEIPT"])
 strict = os.environ["CHECK_STATUS_STRICT"] == "1"
 current_head = os.environ["CHECK_STATUS_HEAD"]
 current_fingerprint = os.environ["CHECK_STATUS_FINGERPRINT"]
+current_toolchain_fingerprint = os.environ["CHECK_STATUS_TOOLCHAIN_FINGERPRINT"]
+current_dependency_fingerprint = os.environ["CHECK_STATUS_DEPENDENCY_FINGERPRINT"]
 current_git_worktree = os.environ["CHECK_STATUS_GIT_WORKTREE"]
 current_git_common_dir = os.environ["CHECK_STATUS_GIT_COMMON_DIR"]
 
@@ -270,6 +352,10 @@ if payload.get("git_common_dir") != current_git_common_dir:
     errors.append("git common dir mismatch")
 if payload.get("worktree_fingerprint") != current_fingerprint:
     errors.append("worktree fingerprint mismatch")
+if payload.get("toolchain_fingerprint") != current_toolchain_fingerprint:
+    errors.append("toolchain fingerprint mismatch")
+if payload.get("dependency_fingerprint") != current_dependency_fingerprint:
+    errors.append("dependency fingerprint mismatch")
 if payload.get("finished_at_epoch", -1) < payload.get("started_at_epoch", 0):
     errors.append("finished_at is before started_at")
 # check-runner.sh's only caller (check.sh) never mutates the tree (ruff format --check, gen/vendor
