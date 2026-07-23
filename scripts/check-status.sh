@@ -95,6 +95,34 @@ toolchain_fingerprint() {
     else
       echo "uv unavailable"
     fi
+    if command -v uv >/dev/null 2>&1 && [ -f pyproject.toml ]; then
+      project_python="$(uv python find 2>/dev/null || true)"
+      if [ -n "$project_python" ]; then
+        printf 'project-python: '
+        "$project_python" --version 2>&1
+      else
+        echo "project-python unavailable"
+      fi
+    fi
+    requested_node=""
+    if [ -f .node-version ]; then
+      requested_node="$(tr -d '[:space:]' < .node-version)"
+    elif [ -f .nvmrc ]; then
+      requested_node="$(tr -d '[:space:]' < .nvmrc)"
+    fi
+    if [ -n "$requested_node" ] && command -v fnm >/dev/null 2>&1; then
+      printf 'node: '
+      fnm exec --using="$requested_node" -- node --version 2>&1
+      printf 'npm: '
+      fnm exec --using="$requested_node" -- npm --version 2>&1
+    elif command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+      printf 'node: '
+      node --version 2>&1
+      printf 'npm: '
+      npm --version 2>&1
+    else
+      echo "node/npm unavailable"
+    fi
   } | hash_stream
 }
 

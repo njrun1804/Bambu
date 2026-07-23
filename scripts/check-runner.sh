@@ -245,6 +245,34 @@ toolchain_fingerprint() {
     else
       echo "uv unavailable"
     fi
+    if command -v uv >/dev/null 2>&1 && [ -f pyproject.toml ]; then
+      project_python="$(uv python find 2>/dev/null || true)"
+      if [ -n "$project_python" ]; then
+        printf 'project-python: '
+        "$project_python" --version 2>&1
+      else
+        echo "project-python unavailable"
+      fi
+    fi
+    requested_node=""
+    if [ -f .node-version ]; then
+      requested_node="$(tr -d '[:space:]' < .node-version)"
+    elif [ -f .nvmrc ]; then
+      requested_node="$(tr -d '[:space:]' < .nvmrc)"
+    fi
+    if [ -n "$requested_node" ] && command -v fnm >/dev/null 2>&1; then
+      printf 'node: '
+      fnm exec --using="$requested_node" -- node --version 2>&1
+      printf 'npm: '
+      fnm exec --using="$requested_node" -- npm --version 2>&1
+    elif command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+      printf 'node: '
+      node --version 2>&1
+      printf 'npm: '
+      npm --version 2>&1
+    else
+      echo "node/npm unavailable"
+    fi
   } | hash_stream
 }
 
@@ -266,7 +294,6 @@ started_at_epoch="$(date -u +%s)"
 started_at_ns="$("$(python_bin)" -c 'import time; print(time.time_ns())')"
 git_head="$(git rev-parse HEAD)"
 fingerprint_before="$(worktree_fingerprint)"
-toolchain_fingerprint_value="$(toolchain_fingerprint)"
 dependency_fingerprint_value="$(dependency_fingerprint)"
 log_path=".check-runs/${run_id}.log"
 receipt_path=".check-runs/${run_id}.json"
@@ -324,6 +351,7 @@ finished_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 finished_at_epoch="$(date -u +%s)"
 finished_at_ns="$("$(python_bin)" -c 'import time; print(time.time_ns())')"
 fingerprint_after="$(worktree_fingerprint)"
+toolchain_fingerprint_value="$(toolchain_fingerprint)"
 
 export CHECK_RECEIPT_RUN_ID="$run_id"
 if [[ "$status" == "0" ]]; then

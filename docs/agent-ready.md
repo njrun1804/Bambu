@@ -1,6 +1,7 @@
 # Agent-ready execution contract
 
-- **Bootstrap:** `uv sync --frozen --all-groups` on the pinned Python 3.12 runtime.
+- **Bootstrap:** `.python-version` selects Python 3.12; run
+  `uv sync --python 3.12 --frozen --all-groups`.
 - **Targeted verification:**
   `uv run python -m unittest discover -s tests -p 'test_design_pipeline.py' -v` plus the relevant
   `uv run ruff check` path.
