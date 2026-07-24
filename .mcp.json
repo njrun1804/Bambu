@@ -5,9 +5,17 @@
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/oraios/serena@v1.5.3",
+        "git+https://github.com/oraios/serena@v1.6.1",
         "serena",
         "start-mcp-server"
+      ]
+    },
+    "bambu": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "bambu-mcp"
       ]
     }
   }
