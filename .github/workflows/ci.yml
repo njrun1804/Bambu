@@ -3,6 +3,7 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch: {}
@@ -16,6 +17,6 @@ permissions:
 
 jobs:
   repo-check:
-    uses: njrun1804-cc/engineering-control-plane/.github/workflows/repo-check.yml@9484d1c6f25db3cf865a07f7775bf597d8940271
+    uses: njrun1804-cc/engineering-control-plane/.github/workflows/repo-check.yml@08619e3a5a6c0a2462f1eff36cba04f71ab29d9e
     with:
       profile: bambu
